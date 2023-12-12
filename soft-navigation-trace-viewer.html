@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <template id="filmstrip-screenshot-template">
+    <style>
+      .container {
+        position: relative;
+      }
+
+      .screenshot {
+        display: block;
+      }
+
+      .lcp {
+        display: none;
+      }
+
+      .lcp.highlighted {
+        display: block;
+        z-index: 10;
+        position: absolute;
+        background-color: rgba(255, 255, 0, 0.75);
+      }
+
+      .tooltip {
+        display: none;
+      }
+
+      .lcp.highlighted:hover .tooltip {
+        z-index: 1000;
+        display: block;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        left: 10px;
+        width: 300px;
+        padding: 10px;
+        border-radius: 10px;
+        background-color: yellow;
+        color: black;
+        border: 2px solid black;
+        text-align: center;
+      }
+
+      #image-url[url=None],
+      span[final=false] {
+        display: none;
+      }
+    </style>
+    <div class="container">
+      <img class="screenshot">
+      <div class="lcp">
+        <div class="tooltip">
+          <p><strong>LCP Element <span id="final" final="false">(Final)</span></strong></p>
+          <p>Type: <span id="type"></span></p>
+          <p id="image-url" url="None"><a id="url" href="" target="_blank"></a></p>
+          <p>Size: <span id="size"></span></p>
+        </div>
+      </div>
+    </div>
+  </template>
+  <template id="filmstrip-soft-navigation-start-template">
+    <style>
+      .container {
+        height: 100%;
+        position: relative;
+      }
+
+      .startblock {
+        width: 40px;
+        height: 100%;
+        background-color: #4CAF50;
+      }
+
+      .container[lcp=false] .startblock {
+        background-color: #F44336;
+      }
+
+      .tooltip {
+        display: none;
+      }
+
+      .container:hover .tooltip {
+        z-index: 1000;
+        display: block;
+        position: absolute;
+        top: 40%;
+        left: 10px;
+        width: 300px;
+        padding: 10px;
+        border-radius: 10px;
+        background-color: #4CAF50;
+        color: white;
+        border: 2px solid white;
+        text-align: center;
+      }
+
+      .container:hover[lcp=false] .tooltip {
+        background-color: #F44336;
+      }
+
+      .lcp-error {
+        display: none;
+      }
+
+      .container:hover[lcp=false] .tooltip .lcp-error {
+        display: inline;
+      }
+    </style>
+    <div class="container">
+      <div class="startblock"></div>
+      <div class="tooltip">
+        <p><strong>Start Soft Navigation<span class="lcp-error"> - No LCP</span></strong></p>
+        <p>URL: <a id="url" target="_blank"></a></p>
+        <p>Navigation ID <span id="navigation-id"></span></p>
+      </div>
+    </div>
+  </template>
+  <template id="timeline-timestamp">
+    <style>
+      .timestamp {
+        font-family: sans-serif;
+      }
+    </style>
+    <div class="timestamp"></div>
+  </template>
+  <template id="trace-timeline-template">
+    <style>
+      :host([empty]) {
+        display: none;
+      }
+
+      .container {
+        display: grid;
+        font-family: sans-serif;
+        background-color: black;
+        color: white;
+        overflow: auto;
+        padding: 15px;
+        border-radius: 5px;
+      }
+
+      .container::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+
+      .container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 5px;
+      }
+
+      .container::-webkit-scrollbar-track {
+        background-color: black;
+      }
+
+      .title {
+        justify-self: start;
+        font-size: x-large;
+        padding: 10px 0 10px;
+        grid-row-start: 1;
+      }
+
+      #timeline {
+        display: grid;
+        grid-row-start: 2;
+        justify-items: center;
+        justify-content: start;
+      }
+
+      #timeline[compressed]>filmstrip-screenshot:not([has-lcp]) {
+        display: none;
+      }
+
+      #timeline[compressed]>filmstrip-screenshot:not([has-lcp])+timeline-timestamp {
+        display: none;
+      }
+
+      input[type=checkbox] {
+        margin: 10px;
+      }
+
+      label:hover {
+        color: #2196F3;
+      }
+
+      label:hover>input {
+        box-shadow: 0 0 3px 3px #2196F3;
+      }
+
+      filmstrip-screenshot {
+        border: 3px solid yellow;
+        margin-left: 2px;
+        margin-right: 2px;
+      }
+
+      filmstrip-soft-navigation-start {
+        margin-left: 2px;
+        margin-right: 2px;
+      }
+    </style>
+    <div class="container">
+      <h1 class="title"></h1>
+      <div id="timeline"></div>
+      <label for="hide-no-lcp"><input type="checkbox" id="hide-no-lcp">Hide screenshots that are not LCP
+        candidates</label>
+    </div>
+  </template>
+  <template id="drop-target-template">
+    <style>
+      .container {
+        width: 100vw;
+        height: 100vh;
+        display: grid;
+        place-content: center;
+        font-family: sans-serif;
+      }
+
+      .container.secondary {
+        width: fit-content;
+        height: fit-content;
+        padding: 20px;
+      }
+
+      #file-input {
+        display: none;
+      }
+
+      .drop-target-content {
+        border: 2px dashed;
+        border-radius: 10px;
+        width: 800px;
+        height: 500px;
+        display: grid;
+        place-content: center;
+        padding: 20px;
+      }
+
+      .drop-target-content:hover {
+        background-color: #2196F3;
+      }
+
+      .drop-target-content:hover #upload-icon {
+        fill: white;
+      }
+
+      .secondary .drop-target-content {
+        width: 200px;
+        height: 200px;
+      }
+
+      .drop-icon {
+        width: 200px;
+        height: 200px;
+      }
+
+      .secondary .drop-icon {
+        width: 100px;
+        height: 100px;
+      }
+
+      .error .drop-target-content {
+        background-color: #FFCDD2;
+        color: #F44336;
+        border-color: #D32F2F;
+      }
+
+      #drop-error {
+        display: none;
+      }
+
+      .error #drop-error {
+        display: inline-grid;
+        font-size: xx-large;
+      }
+
+      .error #upload-icon {
+        fill: #F44336 !important;
+      }
+    </style>
+    <div class="container">
+      <input id="file-input" type="file">
+      <label for="file-input" class="drop-target-content">
+        <svg class="drop-icon" xmlns="http://www.w3.org/2000/svg" viewbox="0 -960 960 960">
+          <path id="upload-icon"
+            d="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
+        </svg>
+        <div id="drop-error"></div>
+      </label>
+    </div>
+  </template>
+  <script>
+
+    class FilmstripSoftNavigationStart extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        let template = document.getElementById("filmstrip-soft-navigation-start-template");
+        let templateContent = template.content;
+
+        const shadowRoot = this.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(templateContent.cloneNode(true));
+        this.updateTooltip();
+      }
+
+      set navigationId(navigationId) {
+        this.navigationId_ = navigationId;
+        this.updateTooltip();
+      }
+
+      set url(url) {
+        this.url_ = url;
+        this.updateTooltip();
+      }
+
+      set hasLcp(lcp) {
+        this.shadowRoot.querySelector('.container').setAttribute("lcp", String(lcp));
+      }
+
+      updateTooltip() {
+        if (!this.shadowRoot) {
+          return;
+        }
+        let url = this.shadowRoot.querySelector('#url');
+        url.setAttribute('href', this.url_);
+        url.textContent = this.url_;
+        let navigationId = this.shadowRoot.querySelector('#navigation-id');
+        navigationId.textContent = this.navigationId_;
+      }
+    }
+
+    class FilmstripScreenshot extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        let template = document.getElementById("filmstrip-screenshot-template");
+        let templateContent = template.content;
+
+        const shadowRoot = this.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(templateContent.cloneNode(true));
+        this.updateSrc();
+        this.updateLcpRect();
+      }
+
+      set viewport(viewport) {
+        this.viewport_ = viewport;
+      }
+
+      set lcpData(lcpData) {
+        this.lcpData_ = lcpData;
+        this.updateLcpRect();
+        this.setAttribute("has-lcp", "true");
+      }
+
+      set src(src) {
+        this.src_ = `data:image/png;base64,${src}`;
+        this.updateSrc();
+      }
+
+      set final(final) {
+        this.shadowRoot.querySelector('#final').setAttribute("final", final);
+      }
+
+      updateSrc() {
+        if (!this.shadowRoot || !this.src_) {
+          return;
+        }
+        let el = this.shadowRoot.querySelector('.screenshot');
+        if (el) {
+          el.src = this.src_;
+          el.addEventListener('load', this.updateLcpRect.bind(this));
+        }
+      }
+
+      updateLcpRect() {
+        if (!this.shadowRoot || !this.viewport_ || !this.lcpData_) {
+          return;
+        }
+        // Rect is p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y.
+        let left = this.lcpData_.rect[0];
+        let top = this.lcpData_.rect[1];
+        let width = this.lcpData_.rect[2] - left;
+        let height = this.lcpData_.rect[5] - top;
+        // Adjust to screenshot dimensions by converting to fraction of the
+        //  viewport and multiplying by screenshot width and height.
+        let img = this.shadowRoot.querySelector('.screenshot');
+        left = (left / this.viewport_.width) * img.clientWidth;
+        top = (top / this.viewport_.height) * img.clientHeight;
+        width = (width / this.viewport_.width) * img.clientWidth;
+        height = (height / this.viewport_.height) * img.clientHeight;
+        let lcpElement = this.shadowRoot.querySelector('.lcp');
+        lcpElement.style.top = `${top}px`;
+        lcpElement.style.left = `${left}px`;
+        lcpElement.style.width = `${width}px`;
+        lcpElement.style.height = `${height}px`;
+        lcpElement.classList.add('highlighted');
+        this.shadowRoot.querySelector('#type').textContent = this.lcpData_.type;
+        this.shadowRoot.querySelector('#size').textContent = this.lcpData_.size;
+        this.shadowRoot.querySelector('#image-url').setAttribute('url', this.lcpData_.url);
+        let a = this.shadowRoot.querySelector('#url');
+        a.href = this.lcpData_.url;
+        a.textContent = this.lcpData_.url;
+      }
+    }
+
+    class TimelineTimestamp extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        let template = document.getElementById("timeline-timestamp");
+        let templateContent = template.content;
+
+        const shadowRoot = this.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(templateContent.cloneNode(true));
+        this.updateTimestamp();
+      }
+
+      set timestamp(timestamp) {
+        this.timestamp_ = timestamp;
+        this.updateTimestamp();
+      }
+
+      updateTimestamp() {
+        if (!this.shadowRoot || this.timestamp_ == null) {
+          return;
+        }
+        let el = this.shadowRoot.querySelector('.timestamp');
+        if (el) {
+          el.textContent = this.timestamp_;
+        }
+      }
+
+    }
+
+    class TraceTimeline extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        let template = document.getElementById("trace-timeline-template");
+        let templateContent = template.content;
+
+        const shadowRoot = this.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(templateContent.cloneNode(true));
+        shadowRoot.querySelector('#hide-no-lcp').addEventListener('change', this.onchange.bind(this));
+      }
+
+      onchange(event) {
+        if (this.shadowRoot.querySelector('#hide-no-lcp').checked) {
+          this.shadowRoot.querySelector('#timeline').setAttribute('compressed', 'true');
+        } else {
+          this.shadowRoot.querySelector('#timeline').removeAttribute('compressed');
+        }
+      }
+
+      set title(title) {
+        this.shadowRoot.querySelector('.title').textContent = title;
+      }
+
+      setGridCss(element, row, column) {
+        element.style.gridRowStart = row;
+        element.style.gridColumnStart = column;
+      }
+
+      set traceData(traceData) {
+        // Clear previous timeline
+        this.removeAttribute('empty');
+        let timelineContainer = this.shadowRoot.querySelector('#timeline');
+        timelineContainer.innerHTML = '';
+        // Parse trase JSON from text data
+        let traceJson = JSON.parse(traceData);
+        let traceEvents = traceJson.traceEvents;
+        traceEvents.sort((a, b) => a.ts - b.ts);
+        // Event named TracingStartedInBrowser has original URL in args.data.frames[0].url
+        let startUrl = null;
+        let traceStartedEvent = traceEvents.find((e) => e.name == 'TracingStartedInBrowser');
+        if (traceStartedEvent && traceStartedEvent.args && traceStartedEvent.args.data && traceStartedEvent.args.data.frames) {
+          startUrl = traceStartedEvent.args.data.frames[0].url;
+        }
+        this.title = `Soft navigations from ${startUrl}`;
+        // Find viewport rect
+        let viewportEvent = traceEvents.find((e) => e.name == 'PaintTimingVisualizer::Viewport');
+        if (!viewportEvent) {
+          throw new Error('No PaintTimingVisualizer::Viewport event in trace.');
+        }
+        let viewport = {
+          width: viewportEvent.args.data.viewport_rect[2],
+          height: viewportEvent.args.data.viewport_rect[5]
+        };
+        // Cache paint events for LCP candidate nodes
+        let lcpNodeIds = new Set(traceEvents.flatMap((e) => {
+          if (e.name != 'largestContentfulPaint::Candidate' || !e.args || !e.args.data || !e.args.data.nodeId) {
+            return [];
+          }
+          return e.args.data.nodeId;
+        }));
+        let lcpPaintEvents = traceEvents.filter((e) => {
+          return (e.name == 'PaintTimingVisualizer::LayoutObjectPainted' &&
+            e.args && e.args.data && lcpNodeIds.has(e.args.data.dom_node_id));
+        });
+        // Filter to relevant trace events
+        traceEvents = traceEvents.filter((e) => [
+          'Screenshot',
+          'largestContentfulPaint::Candidate',
+          'SoftNavigationHeuristics_SoftNavigationDetected'
+        ].includes(e.name));
+        // Find the first soft navigation event.
+        let firstSoftNavIndex = traceEvents.findIndex((e) => e.name == 'SoftNavigationHeuristics_SoftNavigationDetected');
+        if (firstSoftNavIndex == -1) {
+          throw new Error('No soft navigations found in trace!');
+        }
+        // Clip frames to the first one before the soft nav.
+        let index = 0;
+        for (index = firstSoftNavIndex - 1; index >= 0; index--) {
+          if (traceEvents[index].name == 'Screenshot') {
+            break;
+          }
+        }
+        traceEvents.splice(0, index);
+        let urls = [];
+        let timeStart = traceEvents[0].ts;
+        let lastSnapshot = null;
+        let column = 1;
+        let lastSoftNavId = null;
+        let nextLcpData = null;
+        let lastLcpCandidateScreenshot = null;
+        let lastSoftNavStart = null;
+        for (let e of traceEvents) {
+          let adjustedTimestamp = Math.floor((e.ts - timeStart) / 1000);
+          let timestampElement = document.createElement('timeline-timestamp');
+          timestampElement.timestamp = adjustedTimestamp;
+          this.setGridCss(timestampElement, 2, column);
+          if (e.name == 'SoftNavigationHeuristics_SoftNavigationDetected') {
+            lastSoftNavId = e.args.navigationId;
+            let url = e.args.url;
+            urls.push(url);
+            let softNavStartElement = document.createElement('filmstrip-soft-navigation-start');
+            softNavStartElement.url = url;
+            softNavStartElement.navigationId = lastSoftNavId;
+            this.setGridCss(softNavStartElement, 1, column);
+            timelineContainer.appendChild(softNavStartElement);
+            if (lastLcpCandidateScreenshot) {
+              lastLcpCandidateScreenshot.final = "true";
+              lastLcpCandidateScreenshot = null;
+            } else if (lastSoftNavStart) {
+              // No lcp candidate between last soft nav start and now.
+              lastSoftNavStart.hasLcp = false;
+              lastSoftNavStart = null;
+            }
+            lastSoftNavStart = softNavStartElement;
+          } else if (e.name == 'largestContentfulPaint::Candidate') {
+            if (e.args.data.navigationId != lastSoftNavId) {
+              // LCP unrelated to soft navs in this trace.
+              continue;
+            }
+            // Get related paint event with same node id for text/image placement data
+            let paintEvent = lcpPaintEvents.find((p) => p.args && p.args.data && p.args.data.dom_node_id == e.args.data.nodeId)
+            if (!paintEvent) {
+              console.log(`Error: No paint event for LCP with node id {e.args.data.nodeId}`);
+              continue;
+            }
+            nextLcpData = {
+              'rect': paintEvent.args.data.rect,
+              'url': paintEvent.args.data.image_url,
+              'size': e.args.data.size,
+              'type': e.args.data.type
+            }
+            continue;
+          } else if (e.name == 'Screenshot') {
+            let snapshot = e.args.snapshot;
+            if (snapshot == lastSnapshot) {
+              // Nothing new painted.
+              continue;
+            }
+            lastSnapshot = snapshot;
+            let screenshotElement = document.createElement("filmstrip-screenshot");
+            screenshotElement.src = lastSnapshot;
+            if (nextLcpData) {
+              screenshotElement.lcpData = nextLcpData;
+              screenshotElement.viewport = viewport;
+              nextLcpData = null;
+              lastLcpCandidateScreenshot = screenshotElement;
+            }
+            this.setGridCss(screenshotElement, 1, column);
+            timelineContainer.append(screenshotElement);
+          }
+          timelineContainer.appendChild(timestampElement);
+          column = column + 1;
+        }
+        if (lastLcpCandidateScreenshot) {
+          lastLcpCandidateScreenshot.final = true;
+          lastLcpCandidateScreenshot = null;
+        } else if (lastSoftNavStart) {
+          // Last soft nav has no LCP candidate
+          lastSoftNavStart.hasLcp = false;
+        }
+      }
+    }
+
+    class DropTarget extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        let template = document.getElementById("drop-target-template");
+        let templateContent = template.content;
+
+        const shadowRoot = this.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(templateContent.cloneNode(true));
+
+        shadowRoot.querySelector(".drop-target-content").addEventListener("dragover", this.handleDragover.bind(this));
+        shadowRoot.querySelector(".drop-target-content").addEventListener("drop", this.handleDrop.bind(this));
+        shadowRoot.querySelector("#file-input").addEventListener("change", this.handleChange.bind(this));
+      }
+
+      handleDragover(event) {
+        event.preventDefault();
+      }
+
+      handleDrop(event) {
+        event.preventDefault();
+        this.clearDropError();
+
+        let textPromise = null;
+        if (event.dataTransfer.items) {
+          // Use DataTransferItemList interface to access the file(s)
+          [...event.dataTransfer.items].forEach((item, i) => {
+            // If dropped items aren't files, reject them
+            if (item.kind === "file") {
+              const file = item.getAsFile();
+              textPromise = file.text();
+            }
+          });
+        } else {
+          // Use DataTransfer interface to access the file(s)
+          [...event.dataTransfer.files].forEach((file, i) => {
+            textPromise = file.text();
+          });
+        }
+        if (!textPromise) {
+          this.showDropError('No trace file dropped');
+          return;
+        }
+        textPromise.then(this.generateTimeline.bind(this)).catch(this.showDropError.bind(this));
+      }
+
+      handleChange(event) {
+        let file = event.target.files[0];
+        file.text().then(this.generateTimeline.bind(this)).catch(this.showDropError.bind(this));
+      }
+
+      generateTimeline(text) {
+        document.querySelector('trace-timeline').traceData = text;
+        this.shadowRoot.querySelector('.container').classList.add('secondary');
+      }
+
+      showDropError(message) {
+        document.querySelector('trace-timeline').setAttribute('empty', 'true');
+        this.shadowRoot.querySelector('#drop-error').textContent = message;
+        this.shadowRoot.querySelector('.container').classList.add('error');
+      }
+
+      clearDropError() {
+        this.shadowRoot.querySelector('#drop-error').textContent = '';
+        this.shadowRoot.querySelector('.container').classList.remove('error');
+      }
+    }
+
+    customElements.define(
+      "drop-target",
+      DropTarget,
+    );
+    customElements.define(
+      "trace-timeline",
+      TraceTimeline,
+    );
+    customElements.define(
+      "timeline-timestamp",
+      TimelineTimestamp,
+    );
+    customElements.define(
+      "filmstrip-soft-navigation-start",
+      FilmstripSoftNavigationStart
+    );
+    customElements.define(
+      "filmstrip-screenshot",
+      FilmstripScreenshot
+    )
+  </script>
+  <trace-timeline empty></trace-timeline>
+  <drop-target></drop-target>
+</body>
+</html>
