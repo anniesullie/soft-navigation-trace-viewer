@@ -1,10 +1,16 @@
 # Soft Navigation Trace Viewer
 
+## Overview
 This project creates filmstrip views from traces using the experimental new [Soft Navigation API](https://developer.chrome.com/docs/web-platform/soft-navigations-experiment) in Chrome.
 
 Here is an example of what it displays:
 ![Screenshot of an example filmstrip](filmstrip-screenshot.png)
+It highlights:
+* The start of the soft navigation in green (hover for more info)
+* The paints which were LCP candidates in yellow (hover for more info)
+* The timestamps of paints along the bottom (in milliseconds from when the recording started)
 
+## Try it out
 To use it, you need to record a trace of one or more soft navigations:
 1. Enable [experimental web platform features](https://developer.chrome.com/docs/web-platform/chrome-flags#two_other_ways_to_try_out_experimental_features):
    1. Type chrome://flags/#enable-experimental-web-platform-features into the urlbar
