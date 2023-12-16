@@ -135,7 +135,7 @@
         font-family: sans-serif;
         background-color: black;
         color: white;
-        overflow: auto;
+        overflow: hidden;
         padding: 15px;
         border-radius: 5px;
       }
@@ -166,6 +166,24 @@
         grid-row-start: 2;
         justify-items: center;
         justify-content: start;
+        overflow-x: auto;
+      }
+      #timeline::-webkit-scrollbar {
+        -webkit-appearance: none;
+      }
+
+      #timeline::-webkit-scrollbar:horizontal {
+        height: 11px;
+      }
+
+      #timeline::-webkit-scrollbar-thumb {
+        border-radius: 8px;
+        border: 2px solid white;
+        background-color: rgba(0, 0, 0, .5);
+      }
+      #timeline::-webkit-scrollbar-track { 
+        background-color: #fff; 
+        border-radius: 8px; 
       }
 
       #timeline[compressed]>filmstrip-screenshot:not([has-lcp]) {
@@ -233,6 +251,7 @@
         height: 500px;
         display: grid;
         place-content: center;
+        justify-items: center;
         padding: 20px;
       }
 
@@ -242,6 +261,9 @@
 
       .drop-target-content:hover #upload-icon {
         fill: white;
+      }
+      .drop-target-content:hover #instructions {
+        color: white;
       }
 
       .secondary .drop-target-content {
@@ -269,13 +291,23 @@
         display: none;
       }
 
-      .error #drop-error {
-        display: inline-grid;
+      .error #drop-error, #instructions {
+        display: inline-block;
         font-size: xx-large;
+        text-align: center;
+        margin: 20px;
+      }
+
+      .secondary.error #drop-error, .secondary #instructions {
+        font-size: medium;
       }
 
       .error #upload-icon {
         fill: #F44336 !important;
+      }
+
+      .error #instructions {
+        display: none;
       }
     </style>
     <div class="container">
@@ -286,6 +318,8 @@
             d="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
         </svg>
         <div id="drop-error"></div>
+        <div id="instructions">Record a trace, save it, and drop the .json file here.
+          <a href="https://github.com/anniesullie/soft-navigation-trace-viewer/blob/main/README.md" target="_blank">Full instructions</a>.</div>
       </label>
     </div>
   </template>
@@ -666,6 +700,7 @@
         document.querySelector('trace-timeline').setAttribute('empty', 'true');
         this.shadowRoot.querySelector('#drop-error').textContent = message;
         this.shadowRoot.querySelector('.container').classList.add('error');
+        this.shadowRoot.querySelector('.container').classList.remove('secondary');
       }
 
       clearDropError() {
