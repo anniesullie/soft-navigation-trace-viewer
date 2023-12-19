@@ -24,3 +24,5 @@ To use it, you need to record a trace of one or more soft navigations:
 7. Download the recording using the "Save profile" button with the down arrow icon.
 8. Open `soft-navigation-trace-viewer.html` in a browser and drop the JSON file into it. You can [use the version hosted on glitch](https://soft-navigation-timeline.glitch.me/) if you don't want to run it locally.
 9. A filmstrip should appear showing the navigations and largest contentful paint candidates. You can use the "Save Page As" feature to save this filmstrip and share it.
+
+If you don't have a trace recorded and you just want to see what it does, you can use the [Example Trace](ExampleTraceUnformatted.json).
