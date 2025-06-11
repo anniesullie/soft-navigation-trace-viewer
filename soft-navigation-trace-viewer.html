@@ -30,9 +30,9 @@
         z-index: 1000;
         display: block;
         position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        left: 10px;
+        top: 50%; /* Vertically center */
+        left: 50%; /* Horizontally center */
+        transform: translate(-50%, -50%); /* Adjust for element's own size */
         width: 300px;
         padding: 10px;
         border-radius: 10px;
@@ -85,7 +85,8 @@
         z-index: 1000;
         display: block;
         position: absolute;
-        top: 40%;
+        top: 50%;
+        transform: translateY(-50%);
         left: 10px;
         width: 300px;
         padding: 10px;
