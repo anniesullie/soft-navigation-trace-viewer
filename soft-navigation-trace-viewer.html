@@ -112,7 +112,10 @@
       <div class="tooltip">
         <p><strong>Start Soft Navigation<span class="lcp-error"> - No LCP</span></strong></p>
         <p>URL: <a id="url" target="_blank"></a></p>
-        <p>Navigation ID <span id="navigation-id"></span></p>
+        <p>Navigation ID: <span id="navigation-id"></span></p>
+        <p>Context ID: <span id="context-id"></span></p>
+        <p>DOM Modifications: <span id="dom-modifications"></span></p>
+        <p>Painted Area: <span id="painted-area"></span></p>
       </div>
     </div>
   </template>
@@ -334,6 +337,9 @@
     class FilmstripSoftNavigationStart extends HTMLElement {
       #navigationId;
       #url;
+      #contextId;
+      #domModifications;
+      #paintedArea;
 
       connectedCallback() {
         const shadowRoot = this.attachShadow({ mode: "open" });
@@ -348,6 +354,21 @@
 
       set url(url) {
         this.#url = url;
+        this.updateTooltip();
+      }
+
+      set contextId(contextId) {
+        this.#contextId = contextId;
+        this.updateTooltip();
+      }
+
+      set domModifications(domModifications) {
+        this.#domModifications = domModifications;
+        this.updateTooltip();
+      }
+
+      set paintedArea(paintedArea) {
+        this.#paintedArea = paintedArea;
         this.updateTooltip();
       }
 
@@ -370,6 +391,12 @@
         url.textContent = this.#url ?? '';
         let navigationId = this.shadowRoot.querySelector('#navigation-id');
         navigationId.textContent = this.#navigationId ?? '';
+        let contextId = this.shadowRoot.querySelector('#context-id');
+        contextId.textContent = this.#contextId ?? '';
+        let domModifications = this.shadowRoot.querySelector('#dom-modifications');
+        domModifications.textContent = this.#domModifications ?? 0;
+        let paintedArea = this.shadowRoot.querySelector('#painted-area');
+        paintedArea.textContent = this.#paintedArea ?? 0;
       }
     }
 
@@ -481,6 +508,9 @@
       TRACING_STARTED: 'TracingStartedInBrowser',
       VIEWPORT: 'PaintTimingVisualizer::Viewport',
       LAYOUT_OBJECT_PAINTED: 'PaintTimingVisualizer::LayoutObjectPainted',
+      SOFT_NAV_CONTEXT_CREATED: "SoftNavigationHeuristics::CreateNewContext",
+      SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE: "SoftNavigationContext::FirstAddedModifiedNodeInAnimationFrame",
+      SOFT_NAV_CONTEXT_MODIFIED_NODE: "SoftNavigationContext::AddedModifiedNodeInAnimationFrame",
     };
 
     class TraceTimeline extends HTMLElement {
@@ -571,10 +601,16 @@
           this.#setGridCss(timestampElement, 2, column);
           if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED) {
             lastSoftNavId = e.args.navigationId;
-            let url = e.args.url;
+            let url = e.args?.context?.url ?? 'Unknown URL';
+            let contextId = e.args?.context?.softNavContextId;
+            let domModifications = e.args?.context?.domModifications;
+            let paintedArea = e.args?.context?.paintedArea;
             let softNavStartElement = document.createElement('filmstrip-soft-navigation-start');
             softNavStartElement.url = url;
             softNavStartElement.navigationId = lastSoftNavId;
+            softNavStartElement.contextId = contextId;
+            softNavStartElement.domModifications = domModifications;
+            softNavStartElement.paintedArea = paintedArea;
             this.#setGridCss(softNavStartElement, 1, column);
             timelineContainer.appendChild(softNavStartElement);
             if (lastLcpCandidateScreenshot) {
