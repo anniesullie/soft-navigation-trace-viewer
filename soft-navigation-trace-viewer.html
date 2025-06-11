@@ -325,28 +325,40 @@
   </template>
   <script>
 
-    class FilmstripSoftNavigationStart extends HTMLElement {
-      connectedCallback() {
-        let template = document.getElementById("filmstrip-soft-navigation-start-template");
-        let templateContent = template.content;
+    const filmstripSoftNavigationStartTemplateContent = document.getElementById("filmstrip-soft-navigation-start-template").content;
+    const filmstripScreenshotTemplateContent = document.getElementById("filmstrip-screenshot-template").content;
+    const timelineTimestampTemplateContent = document.getElementById("timeline-timestamp").content;
+    const traceTimelineTemplateContent = document.getElementById("trace-timeline-template").content;
+    const dropTargetTemplateContent = document.getElementById("drop-target-template").content;
 
+    class FilmstripSoftNavigationStart extends HTMLElement {
+      #navigationId;
+      #url;
+
+      connectedCallback() {
         const shadowRoot = this.attachShadow({ mode: "open" });
-        shadowRoot.appendChild(templateContent.cloneNode(true));
+        shadowRoot.appendChild(filmstripSoftNavigationStartTemplateContent.cloneNode(true));
         this.updateTooltip();
       }
 
       set navigationId(navigationId) {
-        this.navigationId_ = navigationId;
+        this.#navigationId = navigationId;
         this.updateTooltip();
       }
 
       set url(url) {
-        this.url_ = url;
+        this.#url = url;
         this.updateTooltip();
       }
 
       set hasLcp(lcp) {
-        this.shadowRoot.querySelector('.container').setAttribute("lcp", String(lcp));
+        // Ensure shadowRoot is available
+        if (this.shadowRoot) {
+          this.shadowRoot.querySelector('.container').setAttribute("lcp", String(lcp));
+        } else {
+          // Defer if shadowRoot is not yet available (e.g., if called before connectedCallback)
+          Promise.resolve().then(() => this.shadowRoot.querySelector('.container').setAttribute("lcp", String(lcp)));
+        }
       }
 
       updateTooltip() {
@@ -354,102 +366,104 @@
           return;
         }
         let url = this.shadowRoot.querySelector('#url');
-        url.setAttribute('href', this.url_);
-        url.textContent = this.url_;
+        url.setAttribute('href', this.#url ?? '');
+        url.textContent = this.#url ?? '';
         let navigationId = this.shadowRoot.querySelector('#navigation-id');
-        navigationId.textContent = this.navigationId_;
+        navigationId.textContent = this.#navigationId ?? '';
       }
     }
 
     class FilmstripScreenshot extends HTMLElement {
-      connectedCallback() {
-        let template = document.getElementById("filmstrip-screenshot-template");
-        let templateContent = template.content;
+      #viewport;
+      #lcpData;
+      #src;
 
+      connectedCallback() {
         const shadowRoot = this.attachShadow({ mode: "open" });
-        shadowRoot.appendChild(templateContent.cloneNode(true));
+        shadowRoot.appendChild(filmstripScreenshotTemplateContent.cloneNode(true));
         this.updateSrc();
         this.updateLcpRect();
       }
 
       set viewport(viewport) {
-        this.viewport_ = viewport;
+        this.#viewport = viewport;
       }
 
       set lcpData(lcpData) {
-        this.lcpData_ = lcpData;
+        this.#lcpData = lcpData;
         this.updateLcpRect();
         this.setAttribute("has-lcp", "true");
       }
 
       set src(src) {
-        this.src_ = `data:image/png;base64,${src}`;
+        this.#src = `data:image/png;base64,${src}`;
         this.updateSrc();
       }
 
       set final(final) {
-        this.shadowRoot.querySelector('#final').setAttribute("final", final);
+        if (this.shadowRoot) {
+          this.shadowRoot.querySelector('#final').setAttribute("final", String(final));
+        }
       }
 
       updateSrc() {
-        if (!this.shadowRoot || !this.src_) {
+        if (!this.shadowRoot || !this.#src) {
           return;
         }
         let el = this.shadowRoot.querySelector('.screenshot');
         if (el) {
-          el.src = this.src_;
+          el.src = this.#src;
           el.addEventListener('load', this.updateLcpRect.bind(this));
         }
       }
 
       updateLcpRect() {
-        if (!this.shadowRoot || !this.viewport_ || !this.lcpData_) {
+        if (!this.shadowRoot || !this.#viewport || !this.#lcpData) {
           return;
         }
         // Rect is p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y.
-        let left = this.lcpData_.rect[0];
-        let top = this.lcpData_.rect[1];
-        let width = this.lcpData_.rect[2] - left;
-        let height = this.lcpData_.rect[5] - top;
+        let left = this.#lcpData.rect[0];
+        let top = this.#lcpData.rect[1];
+        let width = this.#lcpData.rect[2] - left;
+        let height = this.#lcpData.rect[5] - top;
         // Adjust to screenshot dimensions by converting to fraction of the
         //  viewport and multiplying by screenshot width and height.
         let img = this.shadowRoot.querySelector('.screenshot');
-        left = (left / this.viewport_.width) * img.clientWidth;
-        top = (top / this.viewport_.height) * img.clientHeight;
-        width = (width / this.viewport_.width) * img.clientWidth;
-        height = (height / this.viewport_.height) * img.clientHeight;
+        left = (left / this.#viewport.width) * img.clientWidth;
+        top = (top / this.#viewport.height) * img.clientHeight;
+        width = (width / this.#viewport.width) * img.clientWidth;
+        height = (height / this.#viewport.height) * img.clientHeight;
         let lcpElement = this.shadowRoot.querySelector('.lcp');
         lcpElement.style.top = `${top}px`;
         lcpElement.style.left = `${left}px`;
         lcpElement.style.width = `${width}px`;
         lcpElement.style.height = `${height}px`;
         lcpElement.classList.add('highlighted');
-        this.shadowRoot.querySelector('#type').textContent = this.lcpData_.type;
-        this.shadowRoot.querySelector('#size').textContent = this.lcpData_.size;
-        this.shadowRoot.querySelector('#image-url').setAttribute('url', this.lcpData_.url);
+        this.shadowRoot.querySelector('#type').textContent = this.#lcpData.type;
+        this.shadowRoot.querySelector('#size').textContent = this.#lcpData.size;
+        this.shadowRoot.querySelector('#image-url').setAttribute('url', this.#lcpData.url ?? 'None');
         let a = this.shadowRoot.querySelector('#url');
-        a.href = this.lcpData_.url;
-        a.textContent = this.lcpData_.url;
+        a.href = this.#lcpData.url ?? '';
+        a.textContent = this.#lcpData.url ?? '';
       }
     }
 
     class TimelineTimestamp extends HTMLElement {
-      connectedCallback() {
-        let template = document.getElementById("timeline-timestamp");
-        let templateContent = template.content;
+      #timestamp;
 
+      connectedCallback() {
         const shadowRoot = this.attachShadow({ mode: "open" });
-        shadowRoot.appendChild(templateContent.cloneNode(true));
+        shadowRoot.appendChild(timelineTimestampTemplateContent.cloneNode(true));
         this.updateTimestamp();
       }
 
       set timestamp(timestamp) {
-        this.timestamp_ = timestamp;
+        this.#timestamp = timestamp;
         this.updateTimestamp();
       }
 
       updateTimestamp() {
-        if (!this.shadowRoot || this.timestamp_ == null) {
+        if (!this.shadowRoot || this.#timestamp == null) {
           return;
         }
         let el = this.shadowRoot.querySelector('.timestamp');
@@ -471,22 +485,20 @@
 
     class TraceTimeline extends HTMLElement {
       connectedCallback() {
-        let template = document.getElementById("trace-timeline-template");
-        let templateContent = template.content;
-
         const shadowRoot = this.attachShadow({ mode: "open" });
-        shadowRoot.appendChild(templateContent.cloneNode(true));
+        shadowRoot.appendChild(traceTimelineTemplateContent.cloneNode(true));
         shadowRoot.querySelector('#hide-no-lcp').addEventListener('change', this.onchange.bind(this));
       }
 
       onchange(event) {
-        if (this.shadowRoot.querySelector('#hide-no-lcp').checked) {
-          this.shadowRoot.querySelector('#timeline').setAttribute('compressed', 'true');
-        } else {
-          this.shadowRoot.querySelector('#timeline').removeAttribute('compressed');
-        }
+        const isChecked = event.target.checked;
+        this.shadowRoot.querySelector('#timeline').toggleAttribute('compressed', isChecked);
       }
 
+      #setGridCss(element, row, column) {
+        element.style.gridRowStart = row;
+        element.style.gridColumnStart = column;
+      }
       set title(title) {
         this.shadowRoot.querySelector('.title').textContent = title;
       }
@@ -500,17 +512,15 @@
         // Clear previous timeline
         this.removeAttribute('empty');
         let timelineContainer = this.shadowRoot.querySelector('#timeline');
-        timelineContainer.innerHTML = '';
+        timelineContainer.replaceChildren();
         // Parse trase JSON from text data
         let traceJson = JSON.parse(traceData);
         let traceEvents = traceJson.traceEvents;
         traceEvents.sort((a, b) => a.ts - b.ts);
         // Tracing Started event has original URL in args.data.frames[0].url
-        let startUrl = null;
         let traceStartedEvent = traceEvents.find((e) => e.name == TRACE_EVENT_NAMES.TRACING_STARTED);
-        if (traceStartedEvent && traceStartedEvent.args && traceStartedEvent.args.data && traceStartedEvent.args.data.frames) {
-          startUrl = traceStartedEvent.args.data.frames[0].url;
-        }
+        let startUrl = traceStartedEvent?.args?.data?.frames?.[0]?.url ?? 'Unknown Page';
+
         this.title = `Soft navigations from ${startUrl}`;
         // Find viewport rect
         let viewportEvent = traceEvents.find((e) => e.name == TRACE_EVENT_NAMES.VIEWPORT);
@@ -518,20 +528,16 @@
           throw new Error('No PaintTimingVisualizer::Viewport event in trace.');
         }
         let viewport = {
-          width: viewportEvent.args.data.viewport_rect[2],
-          height: viewportEvent.args.data.viewport_rect[5]
+          width: viewportEvent.args.data.viewport_rect[2], // x2
+          height: viewportEvent.args.data.viewport_rect[5] // y3 (assuming rect is x1,y1,x2,y1,x2,y2,x1,y2)
         };
         // Cache paint events for LCP candidate nodes
-        let lcpNodeIds = new Set(traceEvents.flatMap((e) => {
-          if (e.name != TRACE_EVENT_NAMES.LCP_CANDIDATE || !e.args || !e.args.data || !e.args.data.nodeId) {
-            return [];
-          }
-          return e.args.data.nodeId;
-        }));
-        let lcpPaintEvents = traceEvents.filter((e) => {
-          return (e.name == TRACE_EVENT_NAMES.LAYOUT_OBJECT_PAINTED &&
-            e.args && e.args.data && lcpNodeIds.has(e.args.data.dom_node_id));
-        });
+        let lcpNodeIds = new Set(traceEvents.flatMap(e =>
+          (e.name === TRACE_EVENT_NAMES.LCP_CANDIDATE && e.args?.data?.nodeId) ? [e.args.data.nodeId] : []
+        ));
+        let lcpPaintEvents = traceEvents.filter(e =>
+          e.name === TRACE_EVENT_NAMES.LAYOUT_OBJECT_PAINTED && e.args?.data && lcpNodeIds.has(e.args.data.dom_node_id)
+        );
         // Filter to relevant trace events
         traceEvents = traceEvents.filter((e) => [
           TRACE_EVENT_NAMES.SCREENSHOT,
@@ -562,14 +568,14 @@
           let adjustedTimestamp = Math.floor((e.ts - timeStart) / 1000);
           let timestampElement = document.createElement('timeline-timestamp');
           timestampElement.timestamp = adjustedTimestamp;
-          this.setGridCss(timestampElement, 2, column);
+          this.#setGridCss(timestampElement, 2, column);
           if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED) {
             lastSoftNavId = e.args.navigationId;
             let url = e.args.url;
             let softNavStartElement = document.createElement('filmstrip-soft-navigation-start');
             softNavStartElement.url = url;
             softNavStartElement.navigationId = lastSoftNavId;
-            this.setGridCss(softNavStartElement, 1, column);
+            this.#setGridCss(softNavStartElement, 1, column);
             timelineContainer.appendChild(softNavStartElement);
             if (lastLcpCandidateScreenshot) {
               lastLcpCandidateScreenshot.final = "true";
@@ -586,9 +592,9 @@
               continue;
             }
             // Get related paint event with same node id for text/image placement data
-            let paintEvent = lcpPaintEvents.find((p) => p.args && p.args.data && p.args.data.dom_node_id == e.args.data.nodeId)
+            let paintEvent = lcpPaintEvents.find(p => p.args?.data?.dom_node_id === e.args.data.nodeId);
             if (!paintEvent) {
-              console.log(`Error: No paint event for LCP with node id {e.args.data.nodeId}`);
+              console.warn(`No paint event for LCP with node id ${e.args.data.nodeId}`);
               continue;
             }
             nextLcpData = {
@@ -613,7 +619,7 @@
               nextLcpData = null;
               lastLcpCandidateScreenshot = screenshotElement;
             }
-            this.setGridCss(screenshotElement, 1, column);
+            this.#setGridCss(screenshotElement, 1, column);
             timelineContainer.append(screenshotElement);
           }
           timelineContainer.appendChild(timestampElement);
@@ -631,11 +637,8 @@
 
     class DropTarget extends HTMLElement {
       connectedCallback() {
-        let template = document.getElementById("drop-target-template");
-        let templateContent = template.content;
-
         const shadowRoot = this.attachShadow({ mode: "open" });
-        shadowRoot.appendChild(templateContent.cloneNode(true));
+        shadowRoot.appendChild(dropTargetTemplateContent.cloneNode(true));
 
         shadowRoot.querySelector(".drop-target-content").addEventListener("dragover", this.handleDragover.bind(this));
         shadowRoot.querySelector(".drop-target-content").addEventListener("drop", this.handleDrop.bind(this));
