@@ -40,6 +40,7 @@
         color: black;
         border: 2px solid black;
         text-align: center;
+        overflow-wrap: anywhere;
       }
 
       #image-url[url=None],
@@ -93,6 +94,7 @@
         color: white;
         border: 2px solid white;
         text-align: center;
+        overflow-wrap: anywhere;
       }
 
       .container:hover[lcp=false] .tooltip {
@@ -549,7 +551,7 @@
         traceEvents.sort((a, b) => a.ts - b.ts);
         // Tracing Started event has original URL in args.data.frames[0].url
         let traceStartedEvent = traceEvents.find((e) => e.name == TRACE_EVENT_NAMES.TRACING_STARTED);
-        let startUrl = traceStartedEvent?.args?.data?.frames?.[0]?.url ?? 'Unknown Page';
+        let startUrl = traceStartedEvent?.args?.data?.frames?.[0]?.url ?? 'Unknown URL';
 
         this.title = `Soft navigations from ${startUrl}`;
         // Find viewport rect
@@ -601,7 +603,7 @@
           this.#setGridCss(timestampElement, 2, column);
           if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED) {
             lastSoftNavId = e.args.navigationId;
-            let url = e.args?.context?.url ?? 'Unknown URL';
+            let url = e.args?.context?.mostRecentURL;
             let contextId = e.args?.context?.softNavContextId;
             let domModifications = e.args?.context?.domModifications;
             let paintedArea = e.args?.context?.paintedArea;
