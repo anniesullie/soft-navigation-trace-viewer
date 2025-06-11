@@ -30,20 +30,50 @@
         z-index: 1000;
         display: block;
         position: absolute;
-        top: 50%; /* Vertically center */
-        left: 50%; /* Horizontally center */
+        top: 50%;
+        left: 50%;
         transform: translate(-50%, -50%); /* Adjust for element's own size */
         width: 300px;
-        padding: 10px;
+        padding: 12px;
         border-radius: 10px;
         background-color: yellow;
         color: black;
         border: 2px solid black;
         text-align: center;
-        overflow-wrap: anywhere;
       }
 
-      #image-url[url=None],
+      .tooltip-title {
+        margin-bottom: 8px;
+      }
+
+      .tooltip-data-grid {
+        display: inline-grid;
+        grid-template-columns: max-content auto;
+        gap: 6px 8px;
+        align-items: baseline;
+        text-align: left;
+      }
+
+      .tooltip-data-grid .data-label {
+        text-align: right;
+        max-width: 100px;
+        overflow-wrap: break-word;
+      }
+
+      .data-value {
+        overflow-wrap: break-word;
+      }
+
+      .data-value a {
+        word-break: break-all;
+      }
+
+      /* Hiding mechanism for LCP image URL row parts */
+      #lcp-image-url-label[data-hidden="true"],
+      #lcp-image-url-value[data-hidden="true"] {
+        display: none;
+      }
+
       span[final=false] {
         display: none;
       }
@@ -52,10 +82,12 @@
       <img class="screenshot">
       <div class="lcp">
         <div class="tooltip">
-          <p><strong>LCP Element <span id="final" final="false">(Final)</span></strong></p>
-          <p>Type: <span id="type"></span></p>
-          <p id="image-url" url="None"><a id="url" href="" target="_blank"></a></p>
-          <p>Size: <span id="size"></span></p>
+          <p class="tooltip-title"><strong>LCP Element <span id="final" final="false">(Final)</span></strong></p>
+          <div class="tooltip-data-grid">
+            <span class="data-label">Type:</span><span class="data-value" id="type"></span>
+            <span class="data-label" id="lcp-image-url-label">Image URL:</span><span class="data-value" id="lcp-image-url-value"><a id="url" href="" target="_blank"></a></span>
+            <span class="data-label">Size:</span><span class="data-value" id="size"></span>
+          </div>
         </div>
       </div>
     </div>
@@ -89,17 +121,42 @@
         transform: translateY(-50%);
         left: 10px;
         width: 300px;
-        padding: 10px;
+        padding: 12px;
         border-radius: 10px;
         background-color: #4CAF50;
         color: white;
         border: 2px solid white;
         text-align: center;
-        overflow-wrap: anywhere;
       }
 
       .container:hover[lcp=false] .tooltip {
         background-color: #F44336;
+      }
+
+      .tooltip-title {
+        margin-bottom: 8px;
+      }
+
+      .tooltip-data-grid {
+        display: inline-grid;
+        grid-template-columns: max-content auto;
+        gap: 6px 8px;
+        align-items: baseline;
+        text-align: left;
+      }
+
+      .tooltip-data-grid .data-label {
+        text-align: right;
+        max-width: 100px;
+        overflow-wrap: break-word;
+      }
+
+      .data-value {
+        overflow-wrap: break-word;
+      }
+      .data-value a {
+        color: inherit;
+        word-break: break-all;
       }
 
       .lcp-error {
@@ -113,12 +170,14 @@
     <div class="container">
       <div class="startblock"></div>
       <div class="tooltip">
-        <p><strong>Soft Navigation Detected<span class="lcp-error"> - No LCP</span></strong></p>
-        <p>URL: <a id="url" target="_blank"></a></p>
-        <p>Navigation ID: <span id="navigation-id"></span></p>
-        <p>Context ID: <span id="context-id"></span></p>
-        <p>DOM Modifications: <span id="dom-modifications"></span></p>
-        <p>Painted Area: <span id="painted-area"></span></p>
+        <p class="tooltip-title"><strong>Soft Navigation Detected<span class="lcp-error"> - No LCP</span></strong></p>
+        <div class="tooltip-data-grid">
+          <span class="data-label">URL:</span><span class="data-value"><a id="url" target="_blank"></a></span>
+          <span class="data-label">Navigation ID:</span><span class="data-value" id="navigation-id"></span>
+          <span class="data-label">Context ID:</span><span class="data-value" id="context-id"></span>
+          <span class="data-label">DOM Modifications:</span><span class="data-value" id="dom-modifications"></span>
+          <span class="data-label">Painted Area:</span><span class="data-value" id="painted-area"></span>
+        </div>
       </div>
     </div>
   </template>
@@ -471,10 +530,22 @@
         lcpElement.classList.add('highlighted');
         this.shadowRoot.querySelector('#type').textContent = this.#lcpData.type;
         this.shadowRoot.querySelector('#size').textContent = this.#lcpData.size;
-        this.shadowRoot.querySelector('#image-url').setAttribute('url', this.#lcpData.url ?? 'None');
-        let a = this.shadowRoot.querySelector('#url');
-        a.href = this.#lcpData.url ?? '';
-        a.textContent = this.#lcpData.url ?? '';
+
+        const imageUrlLabel = this.shadowRoot.querySelector('#lcp-image-url-label');
+        const imageUrlValue = this.shadowRoot.querySelector('#lcp-image-url-value');
+        const urlLink = this.shadowRoot.querySelector('#url');
+
+        if (this.#lcpData.url && this.#lcpData.url !== 'None') {
+          imageUrlLabel.removeAttribute('data-hidden');
+          imageUrlValue.removeAttribute('data-hidden');
+          urlLink.href = this.#lcpData.url;
+          urlLink.textContent = this.#lcpData.url;
+        } else {
+          imageUrlLabel.setAttribute('data-hidden', 'true');
+          imageUrlValue.setAttribute('data-hidden', 'true');
+          urlLink.href = '';
+          urlLink.textContent = '';
+        }
       }
     }
 
