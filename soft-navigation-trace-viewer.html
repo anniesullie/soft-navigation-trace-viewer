@@ -27,7 +27,7 @@
         display: none;
       }
 
-      .lcp.highlighted:hover .tooltip {
+      .lcp.highlighted:hover + .tooltip, .tooltip:hover {
         z-index: 1000;
         display: block;
         position: absolute;
@@ -38,7 +38,7 @@
         padding: 12px;
         border-radius: 10px;
         background-color: var(--highlight-color);
-        opacity: 1; /* TODO(sullivan): Need to change DOM structure to actually make it opaque relative to current parent */
+        opacity: 1;
         color: black;
         border: 2px solid black;
         text-align: center;
@@ -82,16 +82,15 @@
     </style>
     <div class="container">
       <img class="screenshot">
-      <div class="lcp">
-        <div class="tooltip">
-          <p class="tooltip-title"><strong>LCP Element <span id="final" final="false">(Final)</span></strong></p>
-          <div class="tooltip-data-grid">
-            <span class="data-label">Type:</span><span class="data-value" id="type"></span>
-            <span class="data-label" id="lcp-image-url-label">Image URL:</span><span class="data-value" id="lcp-image-url-value"><a id="url" href="" target="_blank"></a></span>
-            <span class="data-label">Size:</span><span class="data-value" id="size"></span>
-            <span class="data-label">Context ID:</span><span class="data-value" id="context-id"></span>
-            <span class="data-label">Navigation ID:</span><span class="data-value" id="navigation-id"></span>
-          </div>
+      <div class="lcp"></div>
+      <div class="tooltip">
+        <p class="tooltip-title"><strong>LCP Element <span id="final" final="false">(Final)</span></strong></p>
+        <div class="tooltip-data-grid">
+          <span class="data-label">Type:</span><span class="data-value" id="type"></span>
+          <span class="data-label" id="lcp-image-url-label">Image URL:</span><span class="data-value" id="lcp-image-url-value"><a id="url" href="" target="_blank"></a></span>
+          <span class="data-label">Size:</span><span class="data-value" id="size"></span>
+          <span class="data-label">Context ID:</span><span class="data-value" id="context-id"></span>
+          <span class="data-label">Navigation ID:</span><span class="data-value" id="navigation-id"></span>
         </div>
       </div>
     </div>
