@@ -821,6 +821,9 @@
           timestampElement.timestamp = adjustedTimestamp;
           this.#setGridCss(timestampElement, 3, column);
           if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONSTRUCTOR) {
+            if (!e.args?.context) {
+              continue;
+            }
             nextIcons.push(this.createIcon(
               'interaction',
               this.getTooltipContent('Soft Navigation Constructor', e.args, e.args.navigationId, adjustedTimestamp),
