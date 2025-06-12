@@ -751,6 +751,7 @@
         icon.event = event;
         icon.tooltipContent = tooltipContent;
         icon.iconColor = CONTEXT_ID_COLORS[contextId % CONTEXT_ID_COLORS.length];
+        icon.timestamp = tooltipContent['Timestamp'];
         return icon;
       }
 
@@ -790,6 +791,8 @@
           TRACE_EVENT_NAMES.LCP_CANDIDATE,
           TRACE_EVENT_NAMES.SOFT_NAV_CONSTRUCTOR,
           TRACE_EVENT_NAMES.SOFT_NAV_DETECTED,
+          TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE,
+          TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED
         ].includes(e.name));
         // Find the first soft navigation event.
@@ -811,6 +814,7 @@
         let lastSoftNavId = null;
         let nextIcons = [];
         let nextLcpData = null;
+        let nextDomModifications = [];
         let lastLcpCandidateScreenshot = null;
         let navigationIdToContextId = {};
         for (let e of traceEvents) {
@@ -841,6 +845,14 @@
               lastLcpCandidateScreenshot.final = "true";
               lastLcpCandidateScreenshot = null;
             }
+            continue;
+          } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE || e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE) {
+            nextDomModifications.push({
+              'timestamp': adjustedTimestamp,
+              'contextId': e.args?.context?.softNavContextId,
+              'nodeDebugName': e.args?.nodeDebugName,
+              'nodeId': e.args?.nodeId,
+            });
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED) {
             nextIcons.push(this.createIcon(
@@ -889,9 +901,28 @@
               nextLcpData = null;
               lastLcpCandidateScreenshot = screenshotElement;
             }
+            if (nextDomModifications.length > 0) {
+              const groupedByContextId = Object.groupBy(nextDomModifications, obj => obj.contextId);
+              for (const contextId in groupedByContextId) {
+                let modificationsForContext = groupedByContextId[contextId];
+                nextIcons.push(this.createIcon(
+                  'dom-change',
+                  {
+                      'title': 'DOM Modifications',
+                      'Context ID': contextId,
+                      'Node IDs': modificationsForContext.map(node => node.nodeId).join(','),
+                      'Node Debug Names': modificationsForContext.map(node => node.nodeDebugName).join('\n'),
+                      'Timestamp': modificationsForContext[0].timestamp
+                  },
+                  contextId
+                ));
+              }
+              nextDomModifications = [];
+            }
             this.#setGridCss(screenshotElement, 1, column);
             timelineContainer.append(screenshotElement);
           }
+          nextIcons.sort((a, b) => a.timestamp - b.timestamp);
           for (let eventIcon of nextIcons) {
             eventsElement.addIcon(eventIcon);
           }
