@@ -91,6 +91,7 @@
           <span class="data-label">Size:</span><span class="data-value" id="size"></span>
           <span class="data-label">Context ID:</span><span class="data-value" id="context-id"></span>
           <span class="data-label">Navigation ID:</span><span class="data-value" id="navigation-id"></span>
+          <span class="data-label">Timestamp:</span><span class="data-value" id="timestamp"></span>
         </div>
       </div>
     </div>
@@ -509,6 +510,7 @@
         this.shadowRoot.querySelector('#size').textContent = this.#lcpData.size;
         this.shadowRoot.querySelector('#context-id').textContent = this.#lcpData['Context ID'];
         this.shadowRoot.querySelector('#navigation-id').textContent = this.#lcpData['Navigation ID'];
+        this.shadowRoot.querySelector('#timestamp').textContent = this.#lcpData.Timestamp;
 
         const imageUrlLabel = this.shadowRoot.querySelector('#lcp-image-url-label');
         const imageUrlValue = this.shadowRoot.querySelector('#lcp-image-url-value');
@@ -804,7 +806,8 @@
               'Navigation ID': lastSoftNavId,
               'Context ID': e.args?.context?.softNavContextId,
               'DOM Modifications': e.args?.context?.domModifications,
-              'Painted Area': e.args?.context?.paintedArea
+              'Painted Area': e.args?.context?.paintedArea,
+              'Timestamp': adjustedTimestamp,
             };
             let softNavIcon = document.createElement('timeline-event-icon');
             softNavIcon.event = 'soft-nav-detected';
@@ -835,6 +838,7 @@
               'type': e.args.data.type,
               'Context ID': contextId,
               'Navigation ID': e.args.data.navigationId,
+              'Timestamp': adjustedTimestamp,
             };
             let lcpEventIcon = document.createElement('timeline-event-icon');
             lcpEventIcon.event = 'lcp';
