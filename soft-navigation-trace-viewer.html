@@ -483,6 +483,20 @@
         }
       }
 
+      positionElement(left, top, width, height, element) {
+        // Adjust to screenshot dimensions by converting to fraction of the
+        //  viewport and multiplying by screenshot width and height.
+        let img = this.shadowRoot.querySelector('.screenshot');
+        left = (left / this.#viewport.width) * img.clientWidth;
+        top = (top / this.#viewport.height) * img.clientHeight;
+        width = (width / this.#viewport.width) * img.clientWidth;
+        height = (height / this.#viewport.height) * img.clientHeight;
+        element.style.top = `${top}px`;
+        element.style.left = `${left}px`;
+        element.style.width = `${width}px`;
+        element.style.height = `${height}px`;
+      }
+
       updateLcpRect() {
         if (!this.shadowRoot || !this.#viewport || !this.#lcpData) {
           return;
@@ -493,18 +507,8 @@
         let top = this.#lcpData.rect[1];
         let width = this.#lcpData.rect[2] - left;
         let height = this.#lcpData.rect[5] - top;
-        // Adjust to screenshot dimensions by converting to fraction of the
-        //  viewport and multiplying by screenshot width and height.
-        let img = this.shadowRoot.querySelector('.screenshot');
-        left = (left / this.#viewport.width) * img.clientWidth;
-        top = (top / this.#viewport.height) * img.clientHeight;
-        width = (width / this.#viewport.width) * img.clientWidth;
-        height = (height / this.#viewport.height) * img.clientHeight;
         let lcpElement = this.shadowRoot.querySelector('.lcp');
-        lcpElement.style.top = `${top}px`;
-        lcpElement.style.left = `${left}px`;
-        lcpElement.style.width = `${width}px`;
-        lcpElement.style.height = `${height}px`;
+        this.positionElement(left, top, width, height, lcpElement);
         lcpElement.classList.add('highlighted');
         this.shadowRoot.querySelector('#type').textContent = this.#lcpData.type;
         this.shadowRoot.querySelector('#size').textContent = this.#lcpData.size;
