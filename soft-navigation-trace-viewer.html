@@ -672,6 +672,8 @@
       SOFT_NAV_CONSTRUCTOR: "SoftNavigationHeuristics::SoftNavigation",
       SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE: "SoftNavigationContext::FirstAddedModifiedNodeInAnimationFrame",
       SOFT_NAV_CONTEXT_MODIFIED_NODE: "SoftNavigationContext::AddedModifiedNodeInAnimationFrame",
+      SOFT_NAV_CONTEXT_FIRST_PAINT_IN_FRAME: "SoftNavigationContext::FirstAttributablePaintInAnimationFrame",
+      SOFT_NAV_CONTEXT_PAINT_IN_FRAME: "SoftNavigationContext::AttributablePaintInAnimationFrame",
       SOFT_NAV_CONTEXT_EXHAUSTED: 'SoftNavigationHeuristics::SoftNavigationContextWasExhausted'
     }
 
@@ -793,6 +795,8 @@
           TRACE_EVENT_NAMES.SOFT_NAV_DETECTED,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE,
+          TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_PAINT_IN_FRAME,
+          TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_PAINT_IN_FRAME,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED
         ].includes(e.name));
         // Find the first soft navigation event.
@@ -815,6 +819,7 @@
         let nextIcons = [];
         let nextLcpData = null;
         let nextDomModifications = [];
+        let nextPaints = [];
         let lastLcpCandidateScreenshot = null;
         let navigationIdToContextId = {};
         for (let e of traceEvents) {
@@ -852,6 +857,15 @@
               'contextId': e.args?.context?.softNavContextId,
               'nodeDebugName': e.args?.nodeDebugName,
               'nodeId': e.args?.nodeId,
+            });
+            continue;
+          } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_PAINT_IN_FRAME || e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_PAINT_IN_FRAME) {
+            nextPaints.push({
+              'timestamp': adjustedTimestamp,
+              'contextId': e.args?.context?.softNavContextId,
+              'nodeDebugName': e.args?.nodeDebugName,
+              'nodeId': e.args?.nodeId,
+              'rect': e.args?.rect, // TODO(sullivan): put rect into format used by paint
             });
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED) {
@@ -918,6 +932,24 @@
                 ));
               }
               nextDomModifications = [];
+            }
+            if (nextPaints.length > 0) {
+              const groupedByContextId = Object.groupBy(nextPaints, obj => obj.contextId);
+              for (const contextId in groupedByContextId) {
+                let paintsForContext = groupedByContextId[contextId];
+                nextIcons.push(this.createIcon(
+                  'paint',
+                  {
+                      'title': 'Paint Attributed',
+                      'Context ID': contextId,
+                      'Node IDs': paintsForContext.map(node => node.nodeId).join(','),
+                      'Node Debug Names': paintsForContext.map(node => node.nodeDebugName).join('\n'),
+                      'Timestamp': paintsForContext[0].timestamp
+                  },
+                  contextId
+                ));
+              }
+              nextPaints = [];
             }
             this.#setGridCss(screenshotElement, 1, column);
             timelineContainer.append(screenshotElement);
