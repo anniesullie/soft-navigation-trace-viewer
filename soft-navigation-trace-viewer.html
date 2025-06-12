@@ -23,6 +23,13 @@
         opacity: 0.75;
       }
 
+      .paint-rect {
+        display: block;
+        z-index: 10;
+        position: absolute;
+        opacity: 0.75;
+      }
+
       .tooltip {
         display: none;
       }
@@ -96,6 +103,7 @@
           </div>
         </div>
       </div>
+      <div class="paint-rects"></div>
     </div>
   </template>
   <template id="timeline-event-icon">
@@ -432,6 +440,7 @@
       #lcpData;
       #src;
       #highlightColor;
+      #paintRects;
 
       connectedCallback() {
         const shadowRoot = this.attachShadow({ mode: "open" });
@@ -439,6 +448,7 @@
         this.updateSrc();
         this.updateLcpRect();
         this.updateHighlightColor();
+        this.updatePaintRects();
       }
 
       set highlightColor(highlightColor) {
@@ -463,6 +473,11 @@
         this.setAttribute("has-lcp", "true");
       }
 
+      set paintRects(paintRects) {
+        this.#paintRects = paintRects;
+        this.updatePaintRects();
+      }
+
       set src(src) {
         this.#src = `data:image/png;base64,${src}`;
         this.updateSrc();
@@ -481,7 +496,9 @@
         let el = this.shadowRoot.querySelector('.screenshot');
         if (el) {
           el.src = this.#src;
+          // TODO(sullivan): are all the other calls to updateLcpRect/updatePaintRects needed?
           el.addEventListener('load', this.updateLcpRect.bind(this));
+          el.addEventListener('load', this.updatePaintRects.bind(this));
         }
       }
 
@@ -499,6 +516,7 @@
         element.style.height = `${height}px`;
       }
 
+      // TODO(sullivan): the LCP rect overlaps the paint rect. Maybe there should be one rect with two tooltips?
       updateLcpRect() {
         if (!this.shadowRoot || !this.#viewport || !this.#lcpData) {
           return;
@@ -532,6 +550,47 @@
           imageUrlValue.setAttribute('data-hidden', 'true');
           urlLink.href = '';
           urlLink.textContent = '';
+        }
+      }
+
+      updatePaintRects() {
+        if (!this.shadowRoot || !this.#viewport || !this.#paintRects) {
+          return;
+        }
+        let container = this.shadowRoot.querySelector('.paint-rects');
+        container.replaceChildren();
+        for (let rect of this.#paintRects) {
+          let rectElement = document.createElement('div');
+          rectElement.classList.add('paint-rect');
+          rectElement.style.backgroundColor = CONTEXT_ID_HIGHLIGHT_COLORS[rect.contextId % CONTEXT_ID_HIGHLIGHT_COLORS.length];
+          this.positionElement(rect.x, rect.y, rect.width, rect.height, rectElement);
+          container.appendChild(rectElement);
+          // TODO(sullivan): uncomment and fix the below after refactoring to make it easier to share all the CSS.
+          /*
+          let tooltip = document.createElement('div');
+          tooltip.classList.add('paint-rect-tooltip');
+          let title = document.createElement('p');
+          title.classList.add('tooltip-title');
+          title.textContent = 'Attributed Paint';
+          tooltip.appendChild(title);
+          let gridElement = document.createElement('div');
+          gridElement.classList.add('tooltip-data-grid');
+          tooltip.appendChild(gridElement);
+          
+          Object.entries(rect).forEach(([key, value]) => {
+            if (['x', 'y', 'width', 'height'].includes(key)) {
+              return;
+            }
+            let k = document.createElement('span');
+            k.textContent = `${key}:`;
+            k.classList.add('data-label');
+            gridElement.appendChild(k);
+            let v = document.createElement('span');
+            v.classList.add('data-value');
+            v.textContent = value;
+            gridElement.appendChild(v);
+          });
+          rectElement.appendChild(tooltip);*/
         }
       }
     }
@@ -871,7 +930,10 @@
               'contextId': e.args?.context?.softNavContextId,
               'nodeDebugName': e.args?.nodeDebugName,
               'nodeId': e.args?.nodeId,
-              'rect': e.args?.rect, // TODO(sullivan): put rect into format used by paint
+              'x': e.args?.rect_x,
+              'y': e.args?.rect_y,
+              'width': e.args?.rect_width,
+              'height': e.args?.rect_height
             });
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED) {
@@ -915,9 +977,9 @@
             lastSnapshot = snapshot;
             let screenshotElement = document.createElement("filmstrip-screenshot");
             screenshotElement.src = lastSnapshot;
+            screenshotElement.viewport = viewport;
             if (nextLcpData) {
               screenshotElement.lcpData = nextLcpData;
-              screenshotElement.viewport = viewport;
               nextLcpData = null;
               lastLcpCandidateScreenshot = screenshotElement;
             }
@@ -940,6 +1002,7 @@
               nextDomModifications = [];
             }
             if (nextPaints.length > 0) {
+              screenshotElement.paintRects = nextPaints;
               const groupedByContextId = Object.groupBy(nextPaints, obj => obj.contextId);
               for (const contextId in groupedByContextId) {
                 let paintsForContext = groupedByContextId[contextId];
