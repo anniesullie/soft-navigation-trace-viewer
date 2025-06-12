@@ -672,7 +672,8 @@
       SOFT_NAV_CONSTRUCTOR: "SoftNavigationHeuristics::SoftNavigation",
       SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE: "SoftNavigationContext::FirstAddedModifiedNodeInAnimationFrame",
       SOFT_NAV_CONTEXT_MODIFIED_NODE: "SoftNavigationContext::AddedModifiedNodeInAnimationFrame",
-    };
+      SOFT_NAV_CONTEXT_EXHAUSTED: 'SoftNavigationHeuristics::SoftNavigationContextWasExhausted'
+    }
 
     const CONTEXT_ID_COLORS = [
       '#D32F2F',
@@ -733,6 +734,26 @@
         this.shadowRoot.querySelector('.title').textContent = title;
       }
 
+      getTooltipContent(title, args, navigationId, adjustedTimestamp) {
+        return {
+            'title': title,
+            'URL': args?.context?.mostRecentURL,
+            'Navigation ID': navigationId,
+            'Context ID': args?.context?.softNavContextId,
+            'DOM Modifications': args?.context?.domModifications,
+            'Painted Area': args?.context?.paintedArea,
+            'Timestamp': adjustedTimestamp,
+        };
+      }
+
+      createIcon(event, tooltipContent, contextId) {
+        let icon = document.createElement('timeline-event-icon');
+        icon.event = event;
+        icon.tooltipContent = tooltipContent;
+        icon.iconColor = CONTEXT_ID_COLORS[contextId % CONTEXT_ID_COLORS.length];
+        return icon;
+      }
+
       set traceData(traceData) {
         // Clear previous timeline
         this.removeAttribute('empty');
@@ -768,7 +789,8 @@
           TRACE_EVENT_NAMES.SCREENSHOT,
           TRACE_EVENT_NAMES.LCP_CANDIDATE,
           TRACE_EVENT_NAMES.SOFT_NAV_CONSTRUCTOR,
-          TRACE_EVENT_NAMES.SOFT_NAV_DETECTED
+          TRACE_EVENT_NAMES.SOFT_NAV_DETECTED,
+          TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED
         ].includes(e.name));
         // Find the first soft navigation event.
         let firstSoftNavIndex = traceEvents.findIndex((e) => e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED);
@@ -799,40 +821,29 @@
           timestampElement.timestamp = adjustedTimestamp;
           this.#setGridCss(timestampElement, 3, column);
           if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONSTRUCTOR) {
-            let tooltipContent = {
-              'title': 'Soft Navigation Constructor',
-              'URL': e.args?.context?.mostRecentURL,
-              'Navigation ID': e.args.navigationId,
-              'Context ID': e.args?.context?.softNavContextId,
-              'Timestamp': adjustedTimestamp,
-            };
-            let softNavIcon = document.createElement('timeline-event-icon');
-            softNavIcon.event = 'interaction';
-            softNavIcon.tooltipContent = tooltipContent;
-            softNavIcon.iconColor = CONTEXT_ID_COLORS[e.args?.context?.softNavContextId % CONTEXT_ID_COLORS.length];
-            nextIcons.push(softNavIcon);
+            nextIcons.push(this.createIcon(
+              'interaction',
+              this.getTooltipContent('Soft Navigation Constructor', e.args, e.args.navigationId, adjustedTimestamp),
+              e.args?.context?.softNavContextId));
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED) {
             lastSoftNavId = e.args.navigationId;
-            navigationIdToContextId[lastSoftNavId] = e.args?.context?.softNavContextId;
-            let tooltipContent = {
-              'title': 'Soft Navigation Detected',
-              'URL': e.args?.context?.mostRecentURL,
-              'Navigation ID': lastSoftNavId,
-              'Context ID': e.args?.context?.softNavContextId,
-              'DOM Modifications': e.args?.context?.domModifications,
-              'Painted Area': e.args?.context?.paintedArea,
-              'Timestamp': adjustedTimestamp,
-            };
-            let softNavIcon = document.createElement('timeline-event-icon');
-            softNavIcon.event = 'soft-nav-detected';
-            softNavIcon.tooltipContent = tooltipContent;
-            softNavIcon.iconColor = CONTEXT_ID_COLORS[e.args?.context?.softNavContextId % CONTEXT_ID_COLORS.length];
-            nextIcons.push(softNavIcon);
+            let contextId = e.args?.context?.softNavContextId;
+            navigationIdToContextId[lastSoftNavId] = contextId;
+            nextIcons.push(this.createIcon(
+              'soft-nav-detected',
+              this.getTooltipContent('Soft Navigation Detected', e.args, lastSoftNavId, adjustedTimestamp),
+              contextId));
             if (lastLcpCandidateScreenshot) {
               lastLcpCandidateScreenshot.final = "true";
               lastLcpCandidateScreenshot = null;
             }
+            continue;
+          } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED) {
+            nextIcons.push(this.createIcon(
+              'exhausted',
+              this.getTooltipContent('Soft Context Exhausted', e.args, lastSoftNavId, adjustedTimestamp),
+              e.args?.context?.softNavContextId));
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.LCP_CANDIDATE) {
             let contextId = navigationIdToContextId[e.args.data.navigationId];
@@ -855,13 +866,10 @@
               'Navigation ID': e.args.data.navigationId,
               'Timestamp': adjustedTimestamp,
             };
-            let lcpEventIcon = document.createElement('timeline-event-icon');
-            lcpEventIcon.event = 'lcp';
-            lcpEventIcon.tooltipContent = {
-              'title': 'Largest Contentful Paint',
-              ...nextLcpData}
-            lcpEventIcon.iconColor = CONTEXT_ID_COLORS[contextId % CONTEXT_ID_COLORS.length];
-            nextIcons.push(lcpEventIcon);
+            nextIcons.push(this.createIcon(
+              'lcp',
+              this.getTooltipContent('Largest Contentful Paint', {context: {'softNavContextId': contextId}}, e.args.navigationId, adjustedTimestamp),
+              contextId));
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SCREENSHOT) {
             let snapshot = e.args.snapshot;
@@ -948,6 +956,7 @@
       }
 
       showDropError(message) {
+        console.error(message);
         document.querySelector('trace-timeline').setAttribute('empty', 'true');
         this.shadowRoot.querySelector('#drop-error').textContent = message;
         this.shadowRoot.querySelector('.container').classList.add('error');
