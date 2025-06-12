@@ -19,7 +19,8 @@
         display: block;
         z-index: 10;
         position: absolute;
-        background-color: rgba(255, 255, 0, 0.75);
+        background-color: var(--highlight-color);
+        opacity: 0.75;
       }
 
       .tooltip {
@@ -36,7 +37,8 @@
         width: 300px;
         padding: 12px;
         border-radius: 10px;
-        background-color: yellow;
+        background-color: var(--highlight-color);
+        opacity: 1; /* TODO(sullivan): Need to change DOM structure to actually make it opaque relative to current parent */
         color: black;
         border: 2px solid black;
         text-align: center;
@@ -92,45 +94,39 @@
       </div>
     </div>
   </template>
-  <template id="filmstrip-soft-navigation-start-template">
+  <template id="timeline-event-icon">
     <style>
-      .container {
-        height: 100%;
-        position: relative;
+      :host {
+        position: relative; /* For tooltip positioning */
+        display: inline-block;
+        --icon-color: #512DA8;
       }
 
-      .startblock {
-        width: 40px;
-        height: 100%;
-        background-color: #4CAF50;
-      }
-
-      .container[lcp=false] .startblock {
-        background-color: #F44336;
+      .icon {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        background-color: var(--icon-color);
       }
 
       .tooltip {
         display: none;
       }
-
-      .container:hover .tooltip {
+      
+      :host(:hover) .tooltip, :host(.tooltip-on) .tooltip {
         z-index: 1000;
         display: block;
         position: absolute;
         top: 50%;
-        transform: translateY(-50%);
-        left: 10px;
-        width: 300px;
+        left: 50%;
+        transform: translate(0%, -105%); /* Adjust for element's own size */
+        max-width: 800px;
         padding: 12px;
         border-radius: 10px;
-        background-color: #4CAF50;
+        background-color: var(--icon-color);
         color: white;
-        border: 2px solid white;
+        border: 2px solid black;
         text-align: center;
-      }
-
-      .container:hover[lcp=false] .tooltip {
-        background-color: #F44336;
       }
 
       .tooltip-title {
@@ -154,31 +150,61 @@
       .data-value {
         overflow-wrap: break-word;
       }
+
       .data-value a {
-        color: inherit;
         word-break: break-all;
       }
-
-      .lcp-error {
-        display: none;
+      
+      /* Context created (Pointer for user interaction) */
+      .icon-interaction {
+        /*clip-path: polygon(25% 100%, 25% 40%, 30% 30%, 45% 15%, 50% 12%, 55% 15%, 70% 30%, 75% 40%, 75% 100%);*/
+        clip-path: polygon(100% 34%, 69% 52%, 100% 80%, 80% 100%, 52% 69%, 34% 100%, 0 0);
       }
 
-      .container:hover[lcp=false] .tooltip .lcp-error {
-        display: inline;
+      /* DOM Modification (Document with folded corner) */
+      .icon-dom-change {
+        clip-path: polygon(15% 0%, 70% 0%, 100% 25%, 100% 100%, 15% 100%);
+      }
+
+      /* Content Painted (Detailed Paintbrush) */
+      .icon-paint {
+        clip-path: polygon(35% 0, 65% 0, 65% 45%, 85% 60%, 85% 100%, 15% 100%, 15% 60%, 35% 45%);
+      }
+
+      /* Soft navigation detected (Marker) */
+      .icon-soft-nav-detected {
+        clip-path: polygon(50% 0%, 82% 37%, 82% 100%, 18% 100%, 18% 37%);
+      }
+
+      /* LCP Candidate (Sharper Star) */
+      .icon-lcp {
+        clip-path: polygon(50% 0%, 63% 38%, 100% 38%, 75% 63%, 88% 100%, 50% 75%, 12% 100%, 25% 63%, 0% 38%, 37% 38%);
+      }
+
+      /* Context Exhausted (Curved Hourglass) */
+      .icon-exhausted {
+        clip-path: polygon(0 0, 100% 0, 100% 15%, 65% 45%, 65% 55%, 100% 85%, 100% 100%, 0 100%, 0 85%, 35% 55%, 35% 45%, 0 15%);
+      }
+    </style>
+    <div class="icon"></div>
+    <div class="tooltip">
+      <p class="tooltip-title"></p>
+      <div class="tooltip-data-grid"></div>
+    </div>
+  </template>
+  <template id="timeline-events">
+    <style>
+      .container {
+        background-color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px; /* Space between icons */
+        min-height: 24px;
+        padding: 4px; /* Add some padding so icons don't touch the edge */
       }
     </style>
     <div class="container">
-      <div class="startblock"></div>
-      <div class="tooltip">
-        <p class="tooltip-title"><strong>Soft Navigation Detected<span class="lcp-error"> - No LCP</span></strong></p>
-        <div class="tooltip-data-grid">
-          <span class="data-label">URL:</span><span class="data-value"><a id="url" target="_blank"></a></span>
-          <span class="data-label">Navigation ID:</span><span class="data-value" id="navigation-id"></span>
-          <span class="data-label">Context ID:</span><span class="data-value" id="context-id"></span>
-          <span class="data-label">DOM Modifications:</span><span class="data-value" id="dom-modifications"></span>
-          <span class="data-label">Painted Area:</span><span class="data-value" id="painted-area"></span>
-        </div>
-      </div>
     </div>
   </template>
   <template id="timeline-timestamp">
@@ -231,6 +257,8 @@
         grid-row-start: 2;
         justify-items: center;
         justify-content: start;
+        column-gap: 4px;
+        row-gap: 4px;
         overflow-x: auto;
       }
       #timeline::-webkit-scrollbar {
@@ -273,13 +301,11 @@
 
       filmstrip-screenshot {
         border: 3px solid yellow;
-        margin-left: 2px;
-        margin-right: 2px;
       }
 
-      filmstrip-soft-navigation-start {
-        margin-left: 2px;
-        margin-right: 2px;
+      timeline-events {
+        display: block;
+        width: 100%;
       }
     </style>
     <div class="container">
@@ -390,88 +416,37 @@
   </template>
   <script>
 
-    const filmstripSoftNavigationStartTemplateContent = document.getElementById("filmstrip-soft-navigation-start-template").content;
     const filmstripScreenshotTemplateContent = document.getElementById("filmstrip-screenshot-template").content;
+    const timelineEventsTemplateContent = document.getElementById("timeline-events").content;
+    const timelineEventIconTemplateContent = document.getElementById("timeline-event-icon").content;
     const timelineTimestampTemplateContent = document.getElementById("timeline-timestamp").content;
     const traceTimelineTemplateContent = document.getElementById("trace-timeline-template").content;
     const dropTargetTemplateContent = document.getElementById("drop-target-template").content;
-
-    class FilmstripSoftNavigationStart extends HTMLElement {
-      #navigationId;
-      #url;
-      #contextId;
-      #domModifications;
-      #paintedArea;
-
-      connectedCallback() {
-        const shadowRoot = this.attachShadow({ mode: "open" });
-        shadowRoot.appendChild(filmstripSoftNavigationStartTemplateContent.cloneNode(true));
-        this.updateTooltip();
-      }
-
-      set navigationId(navigationId) {
-        this.#navigationId = navigationId;
-        this.updateTooltip();
-      }
-
-      set url(url) {
-        this.#url = url;
-        this.updateTooltip();
-      }
-
-      set contextId(contextId) {
-        this.#contextId = contextId;
-        this.updateTooltip();
-      }
-
-      set domModifications(domModifications) {
-        this.#domModifications = domModifications;
-        this.updateTooltip();
-      }
-
-      set paintedArea(paintedArea) {
-        this.#paintedArea = paintedArea;
-        this.updateTooltip();
-      }
-
-      set hasLcp(lcp) {
-        // Ensure shadowRoot is available
-        if (this.shadowRoot) {
-          this.shadowRoot.querySelector('.container').setAttribute("lcp", String(lcp));
-        } else {
-          // Defer if shadowRoot is not yet available (e.g., if called before connectedCallback)
-          Promise.resolve().then(() => this.shadowRoot.querySelector('.container').setAttribute("lcp", String(lcp)));
-        }
-      }
-
-      updateTooltip() {
-        if (!this.shadowRoot) {
-          return;
-        }
-        let url = this.shadowRoot.querySelector('#url');
-        url.setAttribute('href', this.#url ?? '');
-        url.textContent = this.#url ?? '';
-        let navigationId = this.shadowRoot.querySelector('#navigation-id');
-        navigationId.textContent = this.#navigationId ?? '';
-        let contextId = this.shadowRoot.querySelector('#context-id');
-        contextId.textContent = this.#contextId ?? '';
-        let domModifications = this.shadowRoot.querySelector('#dom-modifications');
-        domModifications.textContent = this.#domModifications ?? 0;
-        let paintedArea = this.shadowRoot.querySelector('#painted-area');
-        paintedArea.textContent = this.#paintedArea ?? 0;
-      }
-    }
 
     class FilmstripScreenshot extends HTMLElement {
       #viewport;
       #lcpData;
       #src;
+      #highlightColor;
 
       connectedCallback() {
         const shadowRoot = this.attachShadow({ mode: "open" });
         shadowRoot.appendChild(filmstripScreenshotTemplateContent.cloneNode(true));
         this.updateSrc();
         this.updateLcpRect();
+        this.updateHighlightColor();
+      }
+
+      set highlightColor(highlightColor) {
+        this.#highlightColor = highlightColor;
+        this.updateHighlightColor();
+      }
+
+      updateHighlightColor() {
+        if (!this.shadowRoot || !this.#highlightColor) {
+          return;
+        }
+        this.style.setProperty('--highlight-color', this.#highlightColor);
       }
 
       set viewport(viewport) {
@@ -510,6 +485,7 @@
         if (!this.shadowRoot || !this.#viewport || !this.#lcpData) {
           return;
         }
+        this.highlightColor = CONTEXT_ID_HIGHLIGHT_COLORS[this.#lcpData['Context ID'] % CONTEXT_ID_HIGHLIGHT_COLORS.length];
         // Rect is p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y.
         let left = this.#lcpData.rect[0];
         let top = this.#lcpData.rect[1];
@@ -547,6 +523,112 @@
           urlLink.textContent = '';
         }
       }
+    }
+
+    class TimelineEventIcon extends HTMLElement {
+      #event;
+      #tooltipContent;
+      #iconColor;
+
+      constructor() {
+        super();
+        this.addEventListener('click', () => this.classList.toggle('tooltip-on'));
+      }
+
+      connectedCallback() {
+        const shadowRoot = this.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(timelineEventIconTemplateContent.cloneNode(true));
+        this.updateEvent();
+        this.updateTooltipContent();
+        this.updateIconColor();
+      }
+
+      set iconColor(iconColor) {
+        this.#iconColor = iconColor;
+        this.updateIconColor();
+      }
+
+      set event(event) {
+        this.#event = event;
+        this.updateEvent();
+      }
+
+      set tooltipContent(tooltipContent) {
+        this.#tooltipContent = tooltipContent;
+        this.updateTooltipContent();
+      }
+
+      updateEvent() {
+        if (!this.shadowRoot || !this.#event) {
+          return;
+        }
+        let el = this.shadowRoot.querySelector('.icon');
+        if (el) {
+          el.classList.add(`icon-${this.#event}`);
+        }
+      }
+
+      updateTooltipContent() {
+        if (!this.shadowRoot || !this.#tooltipContent) {
+          return;
+        }
+        if (this.#tooltipContent.title) {
+          let titleElement = this.shadowRoot.querySelector('.tooltip-title');
+          if (titleElement) {
+            titleElement.textContent = this.#tooltipContent.title;
+          }
+        }
+        let gridElement = this.shadowRoot.querySelector('.tooltip-data-grid');
+        if (gridElement) {
+          Object.entries(this.#tooltipContent).forEach(([key, value]) => {
+            if (key == 'title') {
+              return;
+            }
+            let k = document.createElement('span');
+            k.textContent = `${key}:`;
+            k.classList.add('data-label');
+            gridElement.appendChild(k);
+            let v = document.createElement('span');
+            v.classList.add('data-value');
+            v.textContent = value;
+            gridElement.appendChild(v);
+          });
+        }
+      }
+
+      updateIconColor() {
+        if (!this.shadowRoot || !this.#iconColor) {
+          return;
+        }
+        this.style.setProperty('--icon-color', this.#iconColor);
+      }
+    }
+
+    class TimelineEvents extends HTMLElement {
+      #icons = [];
+
+      connectedCallback() {
+        const shadowRoot = this.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(timelineEventsTemplateContent.cloneNode(true));
+        this.updateIcons();
+      }
+
+      addIcon(icon) {
+        this.#icons.push(icon);
+        this.updateIcons();
+      }
+
+      updateIcons() {
+        if (!this.shadowRoot || this.#icons == null) {
+          return;
+        }
+        let container = this.shadowRoot.querySelector('.container');
+        container.replaceChildren();
+        for (let icon of this.#icons) {
+          container.appendChild(icon);
+        }
+      }
+
     }
 
     class TimelineTimestamp extends HTMLElement {
@@ -587,6 +669,44 @@
       SOFT_NAV_CONTEXT_MODIFIED_NODE: "SoftNavigationContext::AddedModifiedNodeInAnimationFrame",
     };
 
+    const CONTEXT_ID_COLORS = [
+      '#D32F2F',
+      '#C2185B',
+      '#7B1FA2',
+      '#512DA8',
+      '#303F9F',
+      '#1976D2',
+      '#0288D1',
+      '#0097A7',
+      '#00796B',
+      '#388E3C',
+      '#689F38',
+      '#AFB42B',
+      '#FBC02D',
+      '#FFA000',
+      '#F57C00',
+      '#E64A19'
+    ];
+
+    const CONTEXT_ID_HIGHLIGHT_COLORS = [
+      '#FF5252',
+      '#FF4081',
+      '#E040FB',
+      '#7C4DFF',
+      '#536DFE',
+      '#448AFF',
+      '#40C4FF',
+      '#18FFFF',
+      '#64FFDA',
+      '#69F0AE',
+      '#B2FF59',
+      '#EEFF41',
+      '#FFFF00',
+      '#FFD740',
+      '#FFAB40',
+      '#FF6E40',
+    ]
+
     class TraceTimeline extends HTMLElement {
       connectedCallback() {
         const shadowRoot = this.attachShadow({ mode: "open" });
@@ -603,13 +723,9 @@
         element.style.gridRowStart = row;
         element.style.gridColumnStart = column;
       }
+
       set title(title) {
         this.shadowRoot.querySelector('.title').textContent = title;
-      }
-
-      setGridCss(element, row, column) {
-        element.style.gridRowStart = row;
-        element.style.gridColumnStart = column;
       }
 
       set traceData(traceData) {
@@ -665,39 +781,41 @@
         let lastSnapshot = null;
         let column = 1;
         let lastSoftNavId = null;
+        let nextIcons = [];
         let nextLcpData = null;
         let lastLcpCandidateScreenshot = null;
-        let lastSoftNavStart = null;
+        let navigationIdToContextId = {};
         for (let e of traceEvents) {
+          let eventsElement = document.createElement('timeline-events');
+          this.#setGridCss(eventsElement, 2, column);
           let adjustedTimestamp = Math.floor((e.ts - timeStart) / 1000);
           let timestampElement = document.createElement('timeline-timestamp');
           timestampElement.timestamp = adjustedTimestamp;
-          this.#setGridCss(timestampElement, 2, column);
+          this.#setGridCss(timestampElement, 3, column);
           if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED) {
             lastSoftNavId = e.args.navigationId;
-            let url = e.args?.context?.mostRecentURL;
-            let contextId = e.args?.context?.softNavContextId;
-            let domModifications = e.args?.context?.domModifications;
-            let paintedArea = e.args?.context?.paintedArea;
-            let softNavStartElement = document.createElement('filmstrip-soft-navigation-start');
-            softNavStartElement.url = url;
-            softNavStartElement.navigationId = lastSoftNavId;
-            softNavStartElement.contextId = contextId;
-            softNavStartElement.domModifications = domModifications;
-            softNavStartElement.paintedArea = paintedArea;
-            this.#setGridCss(softNavStartElement, 1, column);
-            timelineContainer.appendChild(softNavStartElement);
+            navigationIdToContextId[lastSoftNavId] = e.args?.context?.softNavContextId;
+            let tooltipContent = {
+              'title': 'Soft Navigation Detected',
+              'URL': e.args?.context?.mostRecentURL,
+              'Navigation ID': lastSoftNavId,
+              'Context ID': e.args?.context?.softNavContextId,
+              'DOM Modifications': e.args?.context?.domModifications,
+              'Painted Area': e.args?.context?.paintedArea
+            };
+            let softNavIcon = document.createElement('timeline-event-icon');
+            softNavIcon.event = 'soft-nav-detected';
+            softNavIcon.tooltipContent = tooltipContent;
+            softNavIcon.iconColor = CONTEXT_ID_COLORS[e.args?.context?.softNavContextId % CONTEXT_ID_COLORS.length];
+            nextIcons.push(softNavIcon);
             if (lastLcpCandidateScreenshot) {
               lastLcpCandidateScreenshot.final = "true";
               lastLcpCandidateScreenshot = null;
-            } else if (lastSoftNavStart) {
-              // No lcp candidate between last soft nav start and now.
-              lastSoftNavStart.hasLcp = false;
-              lastSoftNavStart = null;
             }
-            lastSoftNavStart = softNavStartElement;
+            continue;
           } else if (e.name == TRACE_EVENT_NAMES.LCP_CANDIDATE) {
-            if (e.args.data.navigationId != lastSoftNavId) {
+            let contextId = navigationIdToContextId[e.args.data.navigationId];
+            if (!contextId) {
               // LCP unrelated to soft navs in this trace.
               continue;
             }
@@ -711,8 +829,17 @@
               'rect': paintEvent.args.data.rect,
               'url': paintEvent.args.data.image_url,
               'size': e.args.data.size,
-              'type': e.args.data.type
-            }
+              'type': e.args.data.type,
+              'Context ID': contextId,
+              'Navigation ID': e.args.data.navigationId,
+            };
+            let lcpEventIcon = document.createElement('timeline-event-icon');
+            lcpEventIcon.event = 'lcp';
+            lcpEventIcon.tooltipContent = {
+              'title': 'Largest Contentful Paint',
+              ...nextLcpData}
+            lcpEventIcon.iconColor = CONTEXT_ID_COLORS[contextId % CONTEXT_ID_COLORS.length];
+            nextIcons.push(lcpEventIcon);
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SCREENSHOT) {
             let snapshot = e.args.snapshot;
@@ -732,15 +859,17 @@
             this.#setGridCss(screenshotElement, 1, column);
             timelineContainer.append(screenshotElement);
           }
+          for (let eventIcon of nextIcons) {
+            eventsElement.addIcon(eventIcon);
+          }
+          nextIcons = [];
+          timelineContainer.appendChild(eventsElement);
           timelineContainer.appendChild(timestampElement);
           column = column + 1;
         }
         if (lastLcpCandidateScreenshot) {
           lastLcpCandidateScreenshot.final = true;
           lastLcpCandidateScreenshot = null;
-        } else if (lastSoftNavStart) {
-          // Last soft nav has no LCP candidate
-          lastSoftNavStart.hasLcp = false;
         }
       }
     }
@@ -818,12 +947,16 @@
       TraceTimeline,
     );
     customElements.define(
+      "timeline-event-icon",
+      TimelineEventIcon,
+    )
+    customElements.define(
+      "timeline-events",
+      TimelineEvents,
+    )
+    customElements.define(
       "timeline-timestamp",
       TimelineTimestamp,
-    );
-    customElements.define(
-      "filmstrip-soft-navigation-start",
-      FilmstripSoftNavigationStart
     );
     customElements.define(
       "filmstrip-screenshot",
