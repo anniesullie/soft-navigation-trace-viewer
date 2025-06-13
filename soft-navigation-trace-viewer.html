@@ -498,7 +498,12 @@
           gridElement.appendChild(k);
           let v = document.createElement('span');
           v.classList.add('data-value');
-          v.textContent = value;
+          console.log(value);
+          if (typeof(value) == 'string' && value.includes('\n')) {
+            v.innerHTML = value.replaceAll('\n', '<br>');
+          } else {
+            v.textContent = value;
+          }
           gridElement.appendChild(v);
         });
       }
