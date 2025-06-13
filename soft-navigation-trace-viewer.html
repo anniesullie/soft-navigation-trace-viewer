@@ -50,7 +50,7 @@
         position: absolute;
         top: 0;
         left: 20px;
-        transform: translateY(-100%);
+        transform: translateY(var(--yposition));
         padding: 12px;
         border-radius: 10px;
         opacity: 1;
@@ -409,6 +409,7 @@
 
     class FilmstripTooltip extends HTMLElement {
       #color;
+      #yposition;
       #values;
 
       connectedCallback() {
@@ -416,6 +417,7 @@
         shadowRoot.appendChild(filmstripTooltipTemplateContent.cloneNode(true));
         this.updateTooltip();
         this.updateColor();
+        this.updateYPosition();
       }
 
       set values(values) {
@@ -426,6 +428,22 @@
       set color(color) {
         this.#color = color;
         this.updateColor();
+      }
+
+      set yposition(yposition) {
+        this.#yposition = yposition;
+        this.updateYPosition();
+      }
+
+      updateYPosition() {
+        if (!this.#yposition || this.#yposition == 'center') {
+          this.style.setProperty('--yposition', '-50%')
+        }
+        else if (this.#yposition == 'top') {
+          this.style.setProperty('--yposition', '0%');
+        } else {
+          this.style.setProperty('--yposition', '-100%');
+        }
       }
 
       updateColor() {
@@ -488,7 +506,6 @@
           gridElement.appendChild(k);
           let v = document.createElement('span');
           v.classList.add('data-value');
-          console.log(value);
           if (typeof(value) == 'string' && value.includes('\n')) {
             v.innerHTML = value.replaceAll('\n', '<br>');
           } else {
@@ -637,6 +654,7 @@
           let tooltip = document.createElement('filmstrip-tooltip');
           tooltip.values = tooltipInfo;
           tooltip.color = CONTEXT_ID_HIGHLIGHT_COLORS[rect.contextId % CONTEXT_ID_HIGHLIGHT_COLORS.length];
+          tooltip.yposition = 'center';
           wrapper.appendChild(tooltip);
 
           rectElement.addEventListener('mouseenter', () => tooltip.hover = true);
@@ -716,6 +734,7 @@
         }
         this.style.setProperty('--icon-color', this.#iconColor);
         this.shadowRoot.querySelector('filmstrip-tooltip').color = this.#iconColor;
+        this.shadowRoot.querySelector('filmstrip-tooltip').yposition = 'bottom';
       }
     }
 
