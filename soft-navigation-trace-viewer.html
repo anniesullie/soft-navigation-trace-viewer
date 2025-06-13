@@ -1,6 +1,102 @@
 <!DOCTYPE html>
 <html>
+  <head>
+  <script>
+    const CONTEXT_ID_COLORS = [
+      '#D32F2F',
+      '#C2185B',
+      '#7B1FA2',
+      '#512DA8',
+      '#303F9F',
+      '#1976D2',
+      '#0288D1',
+      '#0097A7',
+      '#00796B',
+      '#388E3C',
+      '#689F38',
+      '#AFB42B',
+      '#FBC02D',
+      '#FFA000',
+      '#F57C00',
+      '#E64A19'
+    ];
+
+    const CONTEXT_ID_HIGHLIGHT_COLORS = [
+      '#FF5252',
+      '#FF4081',
+      '#E040FB',
+      '#7C4DFF',
+      '#536DFE',
+      '#448AFF',
+      '#40C4FF',
+      '#18FFFF',
+      '#64FFDA',
+      '#69F0AE',
+      '#B2FF59',
+      '#EEFF41',
+      '#FFFF00',
+      '#FFD740',
+      '#FFAB40',
+      '#FF6E40',
+    ];
+  </script>
+</head>
 <body>
+  <template id="filmstrip-tooltip-template">
+    <style>
+      .tooltip {
+        display: none;
+        z-index: 1000;
+        position: absolute;
+        top: 0;
+        left: 20px;
+        transform: translateY(-100%);
+        padding: 12px;
+        border-radius: 10px;
+        opacity: 1;
+        color: black;
+        border: 2px solid black;
+        text-align: center;
+        background-color: var(--color);
+        white-space: nowrap;
+      }
+
+      .tooltip.hover, .tooltip.hoverSticky {
+        display: block;
+        max-width: 800px;
+      }
+
+      .title {
+        margin-bottom: 8px;
+      }
+
+      .data-grid {
+        display: inline-grid;
+        grid-template-columns: max-content auto;
+        gap: 6px 8px;
+        align-items: baseline;
+        text-align: left;
+      }
+
+      .data-grid .data-label {
+        text-align: right;
+        max-width: 100px;
+        overflow-wrap: break-word;
+      }
+
+      .data-grid .data-value {
+        overflow-wrap: break-word;
+      }
+
+      .data-grid .data-value {
+        word-break: break-all;
+      }
+    </style>
+    <div class="tooltip">
+      <p class="title"></p>
+      <div class="data-grid"></div>
+    </div>
+  </template>
   <template id="filmstrip-screenshot-template">
     <style>
       .container {
@@ -29,142 +125,24 @@
         position: absolute;
         opacity: 0.75;
       }
-
-      .tooltip {
-        display: none;
-      }
-
-      .lcp.highlighted:hover + .tooltip, .tooltip:hover {
-        z-index: 1000;
-        display: block;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%); /* Adjust for element's own size */
-        width: 300px;
-        padding: 12px;
-        border-radius: 10px;
-        background-color: var(--highlight-color);
-        opacity: 1;
-        color: black;
-        border: 2px solid black;
-        text-align: center;
-      }
-
-      .tooltip-title {
-        margin-bottom: 8px;
-      }
-
-      .tooltip-data-grid {
-        display: inline-grid;
-        grid-template-columns: max-content auto;
-        gap: 6px 8px;
-        align-items: baseline;
-        text-align: left;
-      }
-
-      .tooltip-data-grid .data-label {
-        text-align: right;
-        max-width: 100px;
-        overflow-wrap: break-word;
-      }
-
-      .data-value {
-        overflow-wrap: break-word;
-      }
-
-      .data-value a {
-        word-break: break-all;
-      }
-
-      /* Hiding mechanism for LCP image URL row parts */
-      #lcp-image-url-label[data-hidden="true"],
-      #lcp-image-url-value[data-hidden="true"] {
-        display: none;
-      }
-
-      span[final=false] {
-        display: none;
-      }
     </style>
     <div class="container">
       <img class="screenshot">
       <div class="lcp-container">
         <div class="lcp"></div>
-        <div class="tooltip">
-          <p class="tooltip-title"><strong>LCP Element <span id="final" final="false">(Final)</span></strong></p>
-          <div class="tooltip-data-grid">
-            <span class="data-label">Type:</span><span class="data-value" id="type"></span>
-            <span class="data-label" id="lcp-image-url-label">Image URL:</span><span class="data-value" id="lcp-image-url-value"><a id="url" href="" target="_blank"></a></span>
-            <span class="data-label">Size:</span><span class="data-value" id="size"></span>
-            <span class="data-label">Context ID:</span><span class="data-value" id="context-id"></span>
-            <span class="data-label">Navigation ID:</span><span class="data-value" id="navigation-id"></span>
-            <span class="data-label">Timestamp:</span><span class="data-value" id="timestamp"></span>
-          </div>
-        </div>
+        <filmstrip-tooltip id="lcp"></filmstrip-tooltip>
       </div>
-      <div class="paint-rects"></div>
+      <div class="paint-rects-container"></div>
     </div>
   </template>
   <template id="timeline-event-icon">
     <style>
-      :host {
-        position: relative; /* For tooltip positioning */
-        display: inline-block;
-        --icon-color: #512DA8;
-      }
-
       .icon {
         width: 24px;
         height: 24px;
         flex-shrink: 0;
         background-color: var(--icon-color);
-      }
-
-      .tooltip {
-        display: none;
-      }
-      
-      :host(:hover) .tooltip, :host(.tooltip-on) .tooltip {
-        z-index: 1000;
-        display: block;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(0%, -105%); /* Adjust for element's own size */
-        max-width: 800px;
-        padding: 12px;
-        border-radius: 10px;
-        background-color: var(--icon-color);
-        color: white;
-        border: 2px solid black;
-        text-align: center;
-      }
-
-      .tooltip-title {
-        margin-bottom: 8px;
-      }
-
-      .tooltip-data-grid {
-        display: inline-grid;
-        grid-template-columns: max-content auto;
-        gap: 6px 8px;
-        align-items: baseline;
-        text-align: left;
-      }
-
-      .tooltip-data-grid .data-label {
-        text-align: right;
-        max-width: 100px;
-        overflow-wrap: break-word;
-      }
-
-      .data-value {
-        overflow-wrap: break-word;
-      }
-
-      .data-value a {
-        word-break: break-all;
+        position: relative;
       }
       
       /* Context created (Pointer for user interaction) */
@@ -199,10 +177,7 @@
       }
     </style>
     <div class="icon"></div>
-    <div class="tooltip">
-      <p class="tooltip-title"></p>
-      <div class="tooltip-data-grid"></div>
-    </div>
+    <filmstrip-tooltip></filmstrip-tooltip>
   </template>
   <template id="timeline-events">
     <style>
@@ -214,6 +189,12 @@
         gap: 6px; /* Space between icons */
         min-height: 24px;
         padding: 4px; /* Add some padding so icons don't touch the edge */
+      }
+
+      timeline-event-icon {
+        position: relative; /* For tooltip positioning */
+        display: inline-block;
+        --icon-color: #512DA8;
       }
     </style>
     <div class="container">
@@ -428,6 +409,7 @@
   </template>
   <script>
 
+    const filmstripTooltipTemplateContent = document.getElementById("filmstrip-tooltip-template").content;
     const filmstripScreenshotTemplateContent = document.getElementById("filmstrip-screenshot-template").content;
     const timelineEventsTemplateContent = document.getElementById("timeline-events").content;
     const timelineEventIconTemplateContent = document.getElementById("timeline-event-icon").content;
@@ -435,20 +417,106 @@
     const traceTimelineTemplateContent = document.getElementById("trace-timeline-template").content;
     const dropTargetTemplateContent = document.getElementById("drop-target-template").content;
 
+    class FilmstripTooltip extends HTMLElement {
+      #color;
+      #values;
+
+      connectedCallback() {
+        const shadowRoot = this.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(filmstripTooltipTemplateContent.cloneNode(true));
+        this.updateTooltip();
+        this.updateColor();
+      }
+
+      set values(values) {
+        this.#values = values;
+        this.updateTooltip();
+      }
+
+      set color(color) {
+        this.#color = color;
+        this.updateColor();
+      }
+
+      updateColor() {
+        if (!this.shadowRoot || !this.#color) {
+          return;
+        }
+        this.style.setProperty('--color', this.#color);
+      }
+
+      set hover(hover) {
+        if (!this.shadowRoot) {
+          return;
+        }
+        if (hover) {
+          this.shadowRoot.querySelector('.tooltip').classList.add('hover');
+        } else {
+          this.shadowRoot.querySelector('.tooltip').classList.remove('hover');
+        }
+      }
+
+      get hoverSticky() {
+        if (!this.shadowRoot) {
+          return false;
+        }
+        return this.shadowRoot.querySelector('.tooltip').classList.contains('hoverSticky');
+      }
+
+      set hoverSticky(hoverSticky) {
+        if (!this.shadowRoot) {
+          return;
+        }
+        if (hoverSticky) {
+          this.shadowRoot.querySelector('.tooltip').classList.add('hoverSticky');
+        } else {
+          this.shadowRoot.querySelector('.tooltip').classList.remove('hoverSticky');
+        }
+      }
+
+      updateTooltip() {
+        if (!this.shadowRoot || !this.#values) {
+          return;
+        }
+        let tooltip = this.shadowRoot.querySelector('.tooltip');
+        if (!tooltip) {
+          return;
+        }
+        tooltip.classList.add('tooltip');
+        let title = this.shadowRoot.querySelector('.title');
+        title.textContent = this.#values.title;
+        let gridElement = this.shadowRoot.querySelector('.data-grid');
+        gridElement.replaceChildren();
+
+        Object.entries(this.#values).forEach(([key, value]) => {
+          if (key == 'title') {
+            return;
+          }
+          let k = document.createElement('span');
+          k.textContent = `${key}:`;
+          k.classList.add('data-label');
+          gridElement.appendChild(k);
+          let v = document.createElement('span');
+          v.classList.add('data-value');
+          v.textContent = value;
+          gridElement.appendChild(v);
+        });
+      }
+    }
+
     class FilmstripScreenshot extends HTMLElement {
       #viewport;
       #lcpData;
       #src;
       #highlightColor;
       #paintRects;
+      #final;
 
       connectedCallback() {
         const shadowRoot = this.attachShadow({ mode: "open" });
         shadowRoot.appendChild(filmstripScreenshotTemplateContent.cloneNode(true));
         this.updateSrc();
-        this.updateLcpRect();
         this.updateHighlightColor();
-        this.updatePaintRects();
       }
 
       set highlightColor(highlightColor) {
@@ -484,9 +552,8 @@
       }
 
       set final(final) {
-        if (this.shadowRoot) {
-          this.shadowRoot.querySelector('#final').setAttribute("final", String(final));
-        }
+        this.#final = final;
+        this.updateLcpRect();
       }
 
       updateSrc() {
@@ -496,7 +563,6 @@
         let el = this.shadowRoot.querySelector('.screenshot');
         if (el) {
           el.src = this.#src;
-          // TODO(sullivan): are all the other calls to updateLcpRect/updatePaintRects needed?
           el.addEventListener('load', this.updateLcpRect.bind(this));
           el.addEventListener('load', this.updatePaintRects.bind(this));
         }
@@ -530,67 +596,59 @@
         let lcpElement = this.shadowRoot.querySelector('.lcp');
         this.positionElement(left, top, width, height, lcpElement);
         lcpElement.classList.add('highlighted');
-        this.shadowRoot.querySelector('#type').textContent = this.#lcpData.type;
-        this.shadowRoot.querySelector('#size').textContent = this.#lcpData.size;
-        this.shadowRoot.querySelector('#context-id').textContent = this.#lcpData['Context ID'];
-        this.shadowRoot.querySelector('#navigation-id').textContent = this.#lcpData['Navigation ID'];
-        this.shadowRoot.querySelector('#timestamp').textContent = this.#lcpData.Timestamp;
-
-        const imageUrlLabel = this.shadowRoot.querySelector('#lcp-image-url-label');
-        const imageUrlValue = this.shadowRoot.querySelector('#lcp-image-url-value');
-        const urlLink = this.shadowRoot.querySelector('#url');
-
-        if (this.#lcpData.url && this.#lcpData.url !== 'None') {
-          imageUrlLabel.removeAttribute('data-hidden');
-          imageUrlValue.removeAttribute('data-hidden');
-          urlLink.href = this.#lcpData.url;
-          urlLink.textContent = this.#lcpData.url;
-        } else {
-          imageUrlLabel.setAttribute('data-hidden', 'true');
-          imageUrlValue.setAttribute('data-hidden', 'true');
-          urlLink.href = '';
-          urlLink.textContent = '';
+        let tooltipValues = {
+          'title': 'Largest Contentful Paint',
+          'Type': this.#lcpData.type,
+          'Size': this.#lcpData.size,
+          'Context ID': this.#lcpData['Context ID'],
+          'Navigation ID': this.#lcpData['Navigation ID'],
+          'Timestamp': this.#lcpData.Timestamp,
+          'URL': this.#lcpData.url
+        };
+        if (this.#final) {
+          tooltipValues['Final'] = 'Final';
         }
+        this.shadowRoot.querySelector('filmstrip-tooltip#lcp').values = tooltipValues;
       }
 
       updatePaintRects() {
         if (!this.shadowRoot || !this.#viewport || !this.#paintRects) {
           return;
         }
-        let container = this.shadowRoot.querySelector('.paint-rects');
+        let container = this.shadowRoot.querySelector('.paint-rects-container');
+        if (!container) {
+          return;
+        }
         container.replaceChildren();
         for (let rect of this.#paintRects) {
+          let wrapper = document.createElement('div');
+          wrapper.style.position = 'absolute';
+          this.positionElement(rect.x, rect.y, rect.width, rect.height, wrapper);
+
           let rectElement = document.createElement('div');
           rectElement.classList.add('paint-rect');
+          // This doesn't use a CSS var because there could be multiple highlight colors from multiple contexts in a frame.
           rectElement.style.backgroundColor = CONTEXT_ID_HIGHLIGHT_COLORS[rect.contextId % CONTEXT_ID_HIGHLIGHT_COLORS.length];
-          this.positionElement(rect.x, rect.y, rect.width, rect.height, rectElement);
-          container.appendChild(rectElement);
-          // TODO(sullivan): uncomment and fix the below after refactoring to make it easier to share all the CSS.
-          /*
-          let tooltip = document.createElement('div');
-          tooltip.classList.add('paint-rect-tooltip');
-          let title = document.createElement('p');
-          title.classList.add('tooltip-title');
-          title.textContent = 'Attributed Paint';
-          tooltip.appendChild(title);
-          let gridElement = document.createElement('div');
-          gridElement.classList.add('tooltip-data-grid');
-          tooltip.appendChild(gridElement);
-          
+          rectElement.style.width = '100%';
+          rectElement.style.height = '100%';
+          wrapper.appendChild(rectElement);
+          let tooltipInfo = {title: 'Attributed Paint'};
           Object.entries(rect).forEach(([key, value]) => {
             if (['x', 'y', 'width', 'height'].includes(key)) {
               return;
             }
-            let k = document.createElement('span');
-            k.textContent = `${key}:`;
-            k.classList.add('data-label');
-            gridElement.appendChild(k);
-            let v = document.createElement('span');
-            v.classList.add('data-value');
-            v.textContent = value;
-            gridElement.appendChild(v);
+            tooltipInfo[key] = value;
           });
-          rectElement.appendChild(tooltip);*/
+          let tooltip = document.createElement('filmstrip-tooltip');
+          tooltip.values = tooltipInfo;
+          tooltip.color = CONTEXT_ID_HIGHLIGHT_COLORS[rect.contextId % CONTEXT_ID_HIGHLIGHT_COLORS.length];
+          wrapper.appendChild(tooltip);
+
+          rectElement.addEventListener('mouseenter', () => tooltip.hover = true);
+          rectElement.addEventListener('mouseleave', () => tooltip.hover = false);
+          rectElement.addEventListener('click', () => tooltip.hoverSticky = !tooltip.hoverSticky);
+
+          container.appendChild(wrapper);
         }
       }
     }
@@ -602,7 +660,6 @@
 
       constructor() {
         super();
-        this.addEventListener('click', () => this.classList.toggle('tooltip-on'));
       }
 
       connectedCallback() {
@@ -611,6 +668,15 @@
         this.updateEvent();
         this.updateTooltipContent();
         this.updateIconColor();
+        this.shadowRoot.querySelector('.icon').addEventListener('mouseenter', () => this.shadowRoot.querySelector('filmstrip-tooltip').hover = true);
+        this.shadowRoot.querySelector('.icon').addEventListener('mouseleave', () => this.shadowRoot.querySelector('filmstrip-tooltip').hover = false);
+        this.addEventListener('click', () => this.shadowRoot.querySelector('filmstrip-tooltip').hoverSticky = !this.shadowRoot.querySelector('filmstrip-tooltip').hoverSticky);
+      }
+
+      disconnectedCallback() {
+        this.removeEventListener('click');
+        this.shadowRoot.querySelector('icon').removeEventListener('mouseenter');
+        this.shadowRoot.querySelector('icon').removeEventListener('mouseleave');
       }
 
       set iconColor(iconColor) {
@@ -642,28 +708,11 @@
         if (!this.shadowRoot || !this.#tooltipContent) {
           return;
         }
-        if (this.#tooltipContent.title) {
-          let titleElement = this.shadowRoot.querySelector('.tooltip-title');
-          if (titleElement) {
-            titleElement.textContent = this.#tooltipContent.title;
-          }
+        let tooltip = this.shadowRoot.querySelector('filmstrip-tooltip');
+        if (!tooltip) {
+          return;
         }
-        let gridElement = this.shadowRoot.querySelector('.tooltip-data-grid');
-        if (gridElement) {
-          Object.entries(this.#tooltipContent).forEach(([key, value]) => {
-            if (key == 'title') {
-              return;
-            }
-            let k = document.createElement('span');
-            k.textContent = `${key}:`;
-            k.classList.add('data-label');
-            gridElement.appendChild(k);
-            let v = document.createElement('span');
-            v.classList.add('data-value');
-            v.textContent = value;
-            gridElement.appendChild(v);
-          });
-        }
+        tooltip.values = this.#tooltipContent;
       }
 
       updateIconColor() {
@@ -671,6 +720,7 @@
           return;
         }
         this.style.setProperty('--icon-color', this.#iconColor);
+        this.shadowRoot.querySelector('filmstrip-tooltip').color = this.#iconColor;
       }
     }
 
@@ -741,44 +791,6 @@
       SOFT_NAV_CONTEXT_PAINT_IN_FRAME: "SoftNavigationContext::AttributablePaintInAnimationFrame",
       SOFT_NAV_CONTEXT_EXHAUSTED: 'SoftNavigationHeuristics::SoftNavigationContextWasExhausted'
     }
-
-    const CONTEXT_ID_COLORS = [
-      '#D32F2F',
-      '#C2185B',
-      '#7B1FA2',
-      '#512DA8',
-      '#303F9F',
-      '#1976D2',
-      '#0288D1',
-      '#0097A7',
-      '#00796B',
-      '#388E3C',
-      '#689F38',
-      '#AFB42B',
-      '#FBC02D',
-      '#FFA000',
-      '#F57C00',
-      '#E64A19'
-    ];
-
-    const CONTEXT_ID_HIGHLIGHT_COLORS = [
-      '#FF5252',
-      '#FF4081',
-      '#E040FB',
-      '#7C4DFF',
-      '#536DFE',
-      '#448AFF',
-      '#40C4FF',
-      '#18FFFF',
-      '#64FFDA',
-      '#69F0AE',
-      '#B2FF59',
-      '#EEFF41',
-      '#FFFF00',
-      '#FFD740',
-      '#FFAB40',
-      '#FF6E40',
-    ]
 
     class TraceTimeline extends HTMLElement {
       connectedCallback() {
@@ -1105,6 +1117,10 @@
     }
 
     customElements.define(
+      "filmstrip-tooltip",
+      FilmstripTooltip,
+    );
+    customElements.define(
       "drop-target",
       DropTarget,
     );
@@ -1115,11 +1131,11 @@
     customElements.define(
       "timeline-event-icon",
       TimelineEventIcon,
-    )
+    );
     customElements.define(
       "timeline-events",
       TimelineEvents,
-    )
+    );
     customElements.define(
       "timeline-timestamp",
       TimelineTimestamp,
@@ -1127,7 +1143,7 @@
     customElements.define(
       "filmstrip-screenshot",
       FilmstripScreenshot
-    )
+    );
   </script>
   <trace-timeline empty></trace-timeline>
   <drop-target></drop-target>
