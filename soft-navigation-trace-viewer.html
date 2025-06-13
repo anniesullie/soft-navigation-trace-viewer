@@ -948,6 +948,7 @@
               'contextId': e.args?.context?.softNavContextId,
               'nodeDebugName': e.args?.nodeDebugName,
               'nodeId': e.args?.nodeId,
+              'domModifications': e.args?.context?.domModifications,
             });
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_PAINT_IN_FRAME || e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_PAINT_IN_FRAME) {
@@ -959,7 +960,8 @@
               'x': e.args?.rect_x,
               'y': e.args?.rect_y,
               'width': e.args?.rect_width,
-              'height': e.args?.rect_height
+              'height': e.args?.rect_height,
+              'paintedArea': e.args?.context?.paintedArea
             });
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED) {
@@ -991,7 +993,13 @@
             };
             nextIcons.push(this.createIcon(
               'lcp',
-              this.getTooltipContent('Largest Contentful Paint', {context: {'softNavContextId': contextId}}, e.args.navigationId, adjustedTimestamp),
+              {
+                'title': 'Largest Contentful Paint',
+                'Navigation ID': e.args.data.navigationId,
+                'Context ID': contextId,
+                'Node ID': e.args.data.nodeId,
+                'Timestamp': adjustedTimestamp
+              },
               contextId));
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SCREENSHOT) {
@@ -1020,6 +1028,7 @@
                       'Context ID': contextId,
                       'Node IDs': modificationsForContext.map(node => node.nodeId).join(', '),
                       'Node Debug Names': modificationsForContext.map(node => node.nodeDebugName).join('\n'),
+                      'DOM Modifications': Math.max(...modificationsForContext.map(item => item.domModifications)),
                       'Timestamp': modificationsForContext[0].timestamp
                   },
                   contextId
@@ -1039,6 +1048,7 @@
                       'Context ID': contextId,
                       'Node IDs': paintsForContext.map(node => node.nodeId).join(','),
                       'Node Debug Names': paintsForContext.map(node => node.nodeDebugName).join('\n'),
+                      'Painted Area': Math.max(...paintsForContext.map(item => item.paintedArea)),
                       'Timestamp': paintsForContext[0].timestamp
                   },
                   contextId
