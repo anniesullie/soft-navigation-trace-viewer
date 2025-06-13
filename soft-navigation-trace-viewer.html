@@ -58,16 +58,14 @@
         border: 2px solid black;
         text-align: center;
         background-color: var(--color);
-        white-space: nowrap;
       }
 
       .tooltip.hover, .tooltip.hoverSticky {
         display: block;
-        max-width: 800px;
       }
 
       .title {
-        margin-bottom: 8px;
+        font-weight: bold;
       }
 
       .data-grid {
@@ -76,20 +74,12 @@
         gap: 6px 8px;
         align-items: baseline;
         text-align: left;
+        font-size: smaller;
       }
 
       .data-grid .data-label {
         text-align: right;
-        max-width: 100px;
         overflow-wrap: break-word;
-      }
-
-      .data-grid .data-value {
-        overflow-wrap: break-word;
-      }
-
-      .data-grid .data-value {
-        word-break: break-all;
       }
     </style>
     <div class="tooltip">
@@ -1009,7 +999,7 @@
                   {
                       'title': 'DOM Modifications',
                       'Context ID': contextId,
-                      'Node IDs': modificationsForContext.map(node => node.nodeId).join(','),
+                      'Node IDs': modificationsForContext.map(node => node.nodeId).join(', '),
                       'Node Debug Names': modificationsForContext.map(node => node.nodeDebugName).join('\n'),
                       'Timestamp': modificationsForContext[0].timestamp
                   },
