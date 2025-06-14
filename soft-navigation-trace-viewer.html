@@ -97,31 +97,19 @@
         display: block;
       }
 
-      .lcp {
-        display: none;
-      }
-
-      .lcp.highlighted {
-        display: block;
-        z-index: 10;
-        position: absolute;
-        background-color: var(--highlight-color);
-        opacity: 0.75;
-      }
-
       .paint-rect {
         display: block;
         z-index: 10;
         position: absolute;
         opacity: 0.75;
       }
+
+      .paint-rect.lcp-candidate {
+        border: 3px solid yellow;
+      }
     </style>
     <div class="container">
       <img class="screenshot">
-      <div class="lcp-container">
-        <div class="lcp"></div>
-        <filmstrip-tooltip id="lcp"></filmstrip-tooltip>
-      </div>
       <div class="paint-rects-container"></div>
     </div>
   </template>
@@ -516,7 +504,6 @@
 
     class FilmstripScreenshot extends HTMLElement {
       #viewport;
-      #lcpData;
       #src;
       #highlightColor;
       #paintRects;
@@ -545,11 +532,6 @@
         this.#viewport = viewport;
       }
 
-      set lcpData(lcpData) {
-        this.#lcpData = lcpData;
-        this.updateLcpRect();
-      }
-
       set paintRects(paintRects) {
         this.#paintRects = paintRects;
         this.updatePaintRects();
@@ -560,11 +542,6 @@
         this.updateSrc();
       }
 
-      set final(final) {
-        this.#final = final;
-        this.updateLcpRect();
-      }
-
       updateSrc() {
         if (!this.shadowRoot || !this.#src) {
           return;
@@ -572,7 +549,6 @@
         let el = this.shadowRoot.querySelector('.screenshot');
         if (el) {
           el.src = this.#src;
-          el.addEventListener('load', this.updateLcpRect.bind(this));
           el.addEventListener('load', this.updatePaintRects.bind(this));
         }
       }
@@ -589,35 +565,6 @@
         element.style.left = `${left}px`;
         element.style.width = `${width}px`;
         element.style.height = `${height}px`;
-      }
-
-      // TODO(sullivan): the LCP rect overlaps the paint rect. Maybe there should be one rect with two tooltips?
-      updateLcpRect() {
-        if (!this.shadowRoot || !this.#viewport || !this.#lcpData) {
-          return;
-        }
-        this.highlightColor = CONTEXT_ID_HIGHLIGHT_COLORS[this.#lcpData['Context ID'] % CONTEXT_ID_HIGHLIGHT_COLORS.length];
-        // Rect is p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y.
-        let left = this.#lcpData.rect[0];
-        let top = this.#lcpData.rect[1];
-        let width = this.#lcpData.rect[2] - left;
-        let height = this.#lcpData.rect[5] - top;
-        let lcpElement = this.shadowRoot.querySelector('.lcp');
-        this.positionElement(left, top, width, height, lcpElement);
-        lcpElement.classList.add('highlighted');
-        let tooltipValues = {
-          'title': 'Largest Contentful Paint',
-          'Type': this.#lcpData.type,
-          'Size': this.#lcpData.size,
-          'Context ID': this.#lcpData['Context ID'],
-          'Navigation ID': this.#lcpData['Navigation ID'],
-          'Timestamp': this.#lcpData.Timestamp,
-          'URL': this.#lcpData.url
-        };
-        if (this.#final) {
-          tooltipValues['Final'] = 'Final';
-        }
-        this.shadowRoot.querySelector('filmstrip-tooltip#lcp').values = tooltipValues;
       }
 
       updatePaintRects() {
@@ -640,13 +587,20 @@
           rectElement.style.backgroundColor = CONTEXT_ID_HIGHLIGHT_COLORS[rect.contextId % CONTEXT_ID_HIGHLIGHT_COLORS.length];
           rectElement.style.width = '100%';
           rectElement.style.height = '100%';
+          if (rect.lcpCandidate) {
+            rectElement.classList.add('lcp-candidate');
+          }
           wrapper.appendChild(rectElement);
           let tooltipInfo = {title: 'Attributed Paint'};
           Object.entries(rect).forEach(([key, value]) => {
             if (['x', 'y', 'width', 'height'].includes(key)) {
               return;
             }
-            tooltipInfo[key] = value;
+            if (key == 'lcpCandidate') {
+              tooltipInfo['LCP Candidate'] = 'True';
+            } else {
+              tooltipInfo[key] = value;
+            }
           });
           let tooltip = document.createElement('filmstrip-tooltip');
           tooltip.values = tooltipInfo;
@@ -868,13 +822,6 @@
           width: viewportEvent.args.data.viewport_rect[2], // x2
           height: viewportEvent.args.data.viewport_rect[5] // y3 (assuming rect is x1,y1,x2,y1,x2,y2,x1,y2)
         };
-        // Cache paint events for LCP candidate nodes
-        let lcpNodeIds = new Set(traceEvents.flatMap(e =>
-          (e.name === TRACE_EVENT_NAMES.LCP_CANDIDATE && e.args?.data?.nodeId) ? [e.args.data.nodeId] : []
-        ));
-        let lcpPaintEvents = traceEvents.filter(e =>
-          e.name === TRACE_EVENT_NAMES.LAYOUT_OBJECT_PAINTED && e.args?.data && lcpNodeIds.has(e.args.data.dom_node_id)
-        );
         // Filter to relevant trace events
         traceEvents = traceEvents.filter((e) => [
           TRACE_EVENT_NAMES.SCREENSHOT,
@@ -907,7 +854,7 @@
         let nextLcpData = null;
         let nextDomModifications = [];
         let nextPaints = [];
-        let lastLcpCandidateScreenshot = null;
+        let lastLcpCandidateContainer = null;
         let navigationIdToContextId = {};
         for (let e of traceEvents) {
           let eventsElement = document.createElement('timeline-events');
@@ -933,9 +880,10 @@
               'soft-nav-detected',
               this.getTooltipContent('Soft Navigation Detected', e.args, lastSoftNavId, adjustedTimestamp),
               contextId));
-            if (lastLcpCandidateScreenshot) {
-              lastLcpCandidateScreenshot.final = "true";
-              lastLcpCandidateScreenshot = null;
+            if (lastLcpCandidateContainer) {
+              lastLcpCandidateContainer.querySelector('filmstrip-screenshot').final = true;
+              lastLcpCandidateContainer.querySelector('timeline-events').final = true;
+              lastLcpCandidateContainer = null;
             }
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE || e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE) {
@@ -972,20 +920,13 @@
               // LCP unrelated to soft navs in this trace.
               continue;
             }
-            // Get related paint event with same node id for text/image placement data
-            let paintEvent = lcpPaintEvents.find(p => p.args?.data?.dom_node_id === e.args.data.nodeId);
-            if (!paintEvent) {
-              console.warn(`No paint event for LCP with node id ${e.args.data.nodeId}`);
-              continue;
-            }
             nextLcpData = {
-              'rect': paintEvent.args.data.rect,
-              'url': paintEvent.args.data.image_url,
               'size': e.args.data.size,
               'type': e.args.data.type,
               'Context ID': contextId,
               'Navigation ID': e.args.data.navigationId,
               'Timestamp': adjustedTimestamp,
+              'nodeId': e.args.data.nodeId,
             };
             nextIcons.push(this.createIcon(
               'lcp',
@@ -1008,11 +949,6 @@
             let screenshotElement = document.createElement("filmstrip-screenshot");
             screenshotElement.src = lastSnapshot;
             screenshotElement.viewport = viewport;
-            if (nextLcpData) {
-              screenshotElement.lcpData = nextLcpData;
-              nextLcpData = null;
-              lastLcpCandidateScreenshot = screenshotElement;
-            }
             if (nextDomModifications.length > 0) {
               const groupedByContextId = Object.groupBy(nextDomModifications, obj => obj.contextId);
               for (const contextId in groupedByContextId) {
@@ -1033,6 +969,13 @@
               nextDomModifications = [];
             }
             if (nextPaints.length > 0) {
+              if (nextLcpData) {
+                for (let paint of nextPaints) {
+                  if (paint.contextId == nextLcpData['Context ID'] && paint.nodeId == nextLcpData.nodeId) {
+                    paint.lcpCandidate = true;
+                  }
+                }
+              }
               screenshotElement.paintRects = nextPaints;
               const groupedByContextId = Object.groupBy(nextPaints, obj => obj.contextId);
               for (const contextId in groupedByContextId) {
@@ -1059,13 +1002,15 @@
             eventsElement.addIcon(eventIcon);
           }
           nextIcons = [];
+          nextLcpData = null;
           containerDiv.appendChild(eventsElement);
           containerDiv.appendChild(timestampElement);
           timelineContainer.appendChild(containerDiv);
         }
-        if (lastLcpCandidateScreenshot) {
-          lastLcpCandidateScreenshot.final = true;
-          lastLcpCandidateScreenshot = null;
+        if (lastLcpCandidateContainer) {
+          lastLcpCandidateContainer.querySelector('filmstrip-screenshot').final = true;
+          lastLcpCandidateContainer.querySelector('timeline-events').final = true;
+          lastLcpCandidateContainer = null;
         }
       }
     }
