@@ -236,14 +236,11 @@
       }
 
       #timeline {
-        display: grid;
-        grid-row-start: 2;
-        justify-items: center;
-        justify-content: start;
-        column-gap: 4px;
-        row-gap: 4px;
+        display: flex;
+        flex-direction: row;
         overflow-x: auto;
       }
+
       #timeline::-webkit-scrollbar {
         -webkit-appearance: none;
       }
@@ -262,12 +259,17 @@
         border-radius: 8px; 
       }
 
-      #timeline[compressed]>filmstrip-screenshot:not([has-lcp]) {
-        display: none;
+      #timeline[compressed] .filmstrip:has(timeline-events[data-container-empty]) {
+          display: none;
       }
 
-      #timeline[compressed]>filmstrip-screenshot:not([has-lcp])+timeline-timestamp {
-        display: none;
+      .filmstrip {
+        margin-right: 4px;
+      }
+
+      timeline-events {
+        margin-top: 4px;
+        margin-bottom: 4px;
       }
 
       input[type=checkbox] {
@@ -282,10 +284,6 @@
         box-shadow: 0 0 3px 3px #2196F3;
       }
 
-      filmstrip-screenshot {
-        border: 3px solid yellow;
-      }
-
       timeline-events {
         display: block;
         width: 100%;
@@ -294,7 +292,7 @@
     <div class="container">
       <h1 class="title"></h1>
       <div id="timeline"></div>
-      <label for="hide-no-lcp"><input type="checkbox" id="hide-no-lcp">Hide screenshots that are not LCP
+      <label for="hide-no-event"><input type="checkbox" id="hide-no-event">Hide screenshots with no soft navigation related events
         candidates</label>
     </div>
   </template>
@@ -550,7 +548,6 @@
       set lcpData(lcpData) {
         this.#lcpData = lcpData;
         this.updateLcpRect();
-        this.setAttribute("has-lcp", "true");
       }
 
       set paintRects(paintRects) {
@@ -753,9 +750,14 @@
       }
 
       updateIcons() {
-        if (!this.shadowRoot || this.#icons == null) {
+        if (!this.shadowRoot) {
           return;
         }
+        if (this.#icons == null || this.#icons.length == 0) {
+          this.setAttribute('data-container-empty', '');
+          return;
+        }
+        this.removeAttribute('data-container-empty');
         let container = this.shadowRoot.querySelector('.container');
         container.replaceChildren();
         for (let icon of this.#icons) {
@@ -810,17 +812,12 @@
       connectedCallback() {
         const shadowRoot = this.attachShadow({ mode: "open" });
         shadowRoot.appendChild(traceTimelineTemplateContent.cloneNode(true));
-        shadowRoot.querySelector('#hide-no-lcp').addEventListener('change', this.onchange.bind(this));
+        shadowRoot.querySelector('#hide-no-event').addEventListener('change', this.onchange.bind(this));
       }
 
       onchange(event) {
         const isChecked = event.target.checked;
         this.shadowRoot.querySelector('#timeline').toggleAttribute('compressed', isChecked);
-      }
-
-      #setGridCss(element, row, column) {
-        element.style.gridRowStart = row;
-        element.style.gridColumnStart = column;
       }
 
       set title(title) {
@@ -905,7 +902,6 @@
         traceEvents.splice(0, index);
         let timeStart = traceEvents[0].ts;
         let lastSnapshot = null;
-        let column = 1;
         let lastSoftNavId = null;
         let nextIcons = [];
         let nextLcpData = null;
@@ -915,11 +911,11 @@
         let navigationIdToContextId = {};
         for (let e of traceEvents) {
           let eventsElement = document.createElement('timeline-events');
-          this.#setGridCss(eventsElement, 2, column);
           let adjustedTimestamp = Math.floor((e.ts - timeStart) / 1000);
           let timestampElement = document.createElement('timeline-timestamp');
           timestampElement.timestamp = adjustedTimestamp;
-          this.#setGridCss(timestampElement, 3, column);
+          let containerDiv = document.createElement('div');
+          containerDiv.classList.add('filmstrip');
           if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONSTRUCTOR) {
             if (!e.args?.context) {
               continue;
@@ -1056,17 +1052,16 @@
               }
               nextPaints = [];
             }
-            this.#setGridCss(screenshotElement, 1, column);
-            timelineContainer.append(screenshotElement);
+            containerDiv.append(screenshotElement);
           }
           nextIcons.sort((a, b) => a.timestamp - b.timestamp);
           for (let eventIcon of nextIcons) {
             eventsElement.addIcon(eventIcon);
           }
           nextIcons = [];
-          timelineContainer.appendChild(eventsElement);
-          timelineContainer.appendChild(timestampElement);
-          column = column + 1;
+          containerDiv.appendChild(eventsElement);
+          containerDiv.appendChild(timestampElement);
+          timelineContainer.appendChild(containerDiv);
         }
         if (lastLcpCandidateScreenshot) {
           lastLcpCandidateScreenshot.final = true;
