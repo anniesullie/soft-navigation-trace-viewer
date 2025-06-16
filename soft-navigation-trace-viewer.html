@@ -106,6 +106,7 @@
 
       .paint-rect.lcp-candidate {
         border: 3px solid yellow;
+        margin: -3px; /* Make up for border */
       }
     </style>
     <div class="container">
@@ -841,16 +842,41 @@
           width: viewportEvent.args.data.viewport_rect[2], // x2
           height: viewportEvent.args.data.viewport_rect[5] // y3 (assuming rect is x1,y1,x2,y1,x2,y2,x1,y2)
         };
+
+        // Make a map of navigation id -> context id
+        const navigationIdToContextId = traceEvents.reduce((acc, e) => {
+          if (e.args.navigationId && e.args?.context?.softNavContextId) {
+            acc[e.args.navigationId] = e.args.context.softNavContextId;
+          }
+          return acc;
+        }, {});
+
+        // Make a map of (context id, node id) -> LCP timestamp, LCP final
+        let lcpTimestamps = {};
+        traceEvents.filter((e) => e.name == TRACE_EVENT_NAMES.LCP_CANDIDATE).forEach((e, i) => {
+          let contextId = navigationIdToContextId[e.args.data.navigationId];
+          lcpTimestamps[contextId] = lcpTimestamps[contextId] || {};
+          lcpTimestamps[contextId][e.args.data.nodeId] = e.ts;
+        });
+        let lcpCandidates = {}
+        for (let contextId of Object.keys(lcpTimestamps)) {
+          lcpCandidates[contextId] = {};
+          let lastTimestamp = Math.max(...Object.values(lcpTimestamps[contextId]));
+          for (let nodeId of Object.keys(lcpTimestamps[contextId])) {
+            lcpCandidates[contextId][nodeId] = lcpTimestamps[contextId][nodeId] == lastTimestamp;
+          }
+        }
+
         // Filter to relevant trace events
         traceEvents = traceEvents.filter((e) => [
           TRACE_EVENT_NAMES.SCREENSHOT,
-          TRACE_EVENT_NAMES.LCP_CANDIDATE,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_CREATED,
           TRACE_EVENT_NAMES.SOFT_NAV_DETECTED,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_PAINT_IN_FRAME,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED
         ].includes(e.name));
+
         // Find the first soft navigation event.
         let firstSoftNavIndex = traceEvents.findIndex((e) => e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED);
         if (firstSoftNavIndex == -1) {
@@ -863,26 +889,11 @@
             break;
           }
         }
-        // Make a map of soft nav -> context id
-        const navigationIdToContextId = traceEvents.reduce((acc, e) => {
-          if (e.args.navigationId && e.args?.context?.softNavContextId) {
-            acc[e.args.navigationId] = e.args.context.softNavContextId;
-          }
-          return acc;
-        }, {});
-        // Make a map of navigation id -> final lcp candidate node id
-        const navigationIdToFinalLcpNodeId = traceEvents
-          .filter(e => e.name === TRACE_EVENT_NAMES.LCP_CANDIDATE)
-          .reduce((acc, e) => {
-            acc[e.args.data.navigationId] = e.args.data.nodeId;
-            return acc;
-          }, {});
         traceEvents.splice(0, index);
         let timeStart = traceEvents[0].ts;
         let lastSnapshot = null;
         let lastSoftNavId = null;
         let nextIcons = [];
-        let nextLcpData = null;
         let nextDomModifications = [];
         let nextPaints = [];
         for (let e of traceEvents) {
@@ -904,7 +915,6 @@
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED) {
             lastSoftNavId = e.args.navigationId;
             let contextId = e.args?.context?.softNavContextId;
-            navigationIdToContextId[lastSoftNavId] = contextId;
             nextIcons.push(this.createIcon(
               'soft-nav-detected',
               this.getTooltipContent('Soft Navigation Detected', e.args, lastSoftNavId, adjustedTimestamp),
@@ -920,51 +930,41 @@
             });
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_PAINT_IN_FRAME) {
+            let contextId = e.args?.context?.softNavContextId;
+            let nodeId = e.args?.nodeId;
+            let lcpCandidate = nodeId in lcpTimestamps[contextId]
+            let final = lcpCandidate && lcpCandidates[contextId][nodeId];
             nextPaints.push({
               'timestamp': adjustedTimestamp,
-              'contextId': e.args?.context?.softNavContextId,
+              'contextId': contextId,
               'nodeDebugName': e.args?.nodeDebugName,
-              'nodeId': e.args?.nodeId,
+              'nodeId': nodeId,
               'x': e.args?.rect_x,
               'y': e.args?.rect_y,
               'width': e.args?.rect_width,
               'height': e.args?.rect_height,
-              'paintedArea': e.args?.context?.paintedArea
+              'paintedArea': e.args?.context?.paintedArea,
+              'lcpCandidate': lcpCandidate,
+              'final': final
             });
+            if (lcpCandidate) {
+            nextIcons.push(this.createIcon(
+                'lcp',
+                {
+                  'title': 'Largest Contentful Paint',
+                  'Context ID': contextId,
+                  'Node ID': nodeId,
+                  'Timestamp': adjustedTimestamp,
+                  'Final': final,
+                },
+                contextId));
+            }
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED) {
             nextIcons.push(this.createIcon(
               'exhausted',
               this.getTooltipContent('Soft Context Exhausted', e.args, lastSoftNavId, adjustedTimestamp),
               e.args?.context?.softNavContextId));
-            continue;
-          } else if (e.name == TRACE_EVENT_NAMES.LCP_CANDIDATE) {
-            let contextId = navigationIdToContextId[e.args.data.navigationId];
-            if (!contextId) {
-              // LCP unrelated to soft navs in this trace.
-              continue;
-            }
-            let final = navigationIdToFinalLcpNodeId[e.args.data.navigationId] == e.args.data.nodeId;
-            nextLcpData = {
-              'size': e.args.data.size,
-              'type': e.args.data.type,
-              'Context ID': contextId,
-              'Navigation ID': e.args.data.navigationId,
-              'Timestamp': adjustedTimestamp,
-              'nodeId': e.args.data.nodeId,
-              'final': final
-            };
-            nextIcons.push(this.createIcon(
-              'lcp',
-              {
-                'title': 'Largest Contentful Paint',
-                'Navigation ID': e.args.data.navigationId,
-                'Context ID': contextId,
-                'Node ID': e.args.data.nodeId,
-                'Timestamp': adjustedTimestamp,
-                'Final': final,
-              },
-              contextId));
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SCREENSHOT) {
             let snapshot = e.args.snapshot;
@@ -996,16 +996,6 @@
               nextDomModifications = [];
             }
             if (nextPaints.length > 0) {
-              if (nextLcpData) {
-                for (let paint of nextPaints) {
-                  console.log(paint.nodeId);
-                  if (paint.contextId == nextLcpData['Context ID'] && paint.nodeId == nextLcpData.nodeId) {
-                    console.log('Is LCP, final=', nextLcpData['final']);
-                    paint.lcpCandidate = true;
-                    paint.final = nextLcpData['final'];
-                  }
-                }
-              }
               screenshotElement.paintRects = nextPaints;
               const groupedByContextId = Object.groupBy(nextPaints, obj => obj.contextId);
               for (const contextId in groupedByContextId) {
@@ -1032,7 +1022,6 @@
             eventsElement.addIcon(eventIcon);
           }
           nextIcons = [];
-          nextLcpData = null;
           containerDiv.appendChild(eventsElement);
           containerDiv.appendChild(timestampElement);
           timelineContainer.appendChild(containerDiv);
