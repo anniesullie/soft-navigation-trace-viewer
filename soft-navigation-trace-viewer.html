@@ -771,13 +771,11 @@
     const TRACE_EVENT_NAMES = {
       SCREENSHOT: 'Screenshot',
       LCP_CANDIDATE: 'largestContentfulPaint::Candidate',
-      SOFT_NAV_DETECTED: 'SoftNavigationHeuristics_SoftNavigationDetected',
+      SOFT_NAV_DETECTED: 'SoftNavigationHeuristics::EmitSoftNavigationEntryIfAllConditionsMet',
       TRACING_STARTED: 'TracingStartedInBrowser',
       VIEWPORT: 'PaintTimingVisualizer::Viewport',
-      SOFT_NAV_CONSTRUCTOR: "SoftNavigationHeuristics::SoftNavigation",
-      SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE: "SoftNavigationContext::FirstAddedModifiedNodeInAnimationFrame",
+      SOFT_NAV_CONTEXT_CREATED: "SoftNavigationHeuristics::CreateNewContext",
       SOFT_NAV_CONTEXT_MODIFIED_NODE: "SoftNavigationContext::AddedModifiedNodeInAnimationFrame",
-      SOFT_NAV_CONTEXT_FIRST_PAINT_IN_FRAME: "SoftNavigationContext::FirstAttributablePaintInAnimationFrame",
       SOFT_NAV_CONTEXT_PAINT_IN_FRAME: "SoftNavigationContext::AttributablePaintInAnimationFrame",
       SOFT_NAV_CONTEXT_EXHAUSTED: 'SoftNavigationHeuristics::SoftNavigationContextWasExhausted'
     }
@@ -847,11 +845,9 @@
         traceEvents = traceEvents.filter((e) => [
           TRACE_EVENT_NAMES.SCREENSHOT,
           TRACE_EVENT_NAMES.LCP_CANDIDATE,
-          TRACE_EVENT_NAMES.SOFT_NAV_CONSTRUCTOR,
+          TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_CREATED,
           TRACE_EVENT_NAMES.SOFT_NAV_DETECTED,
-          TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE,
-          TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_PAINT_IN_FRAME,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_PAINT_IN_FRAME,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED
         ].includes(e.name));
@@ -896,13 +892,13 @@
           timestampElement.timestamp = adjustedTimestamp;
           let containerDiv = document.createElement('div');
           containerDiv.classList.add('filmstrip');
-          if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONSTRUCTOR) {
+          if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_CREATED) {
             if (!e.args?.context) {
               continue;
             }
             nextIcons.push(this.createIcon(
               'interaction',
-              this.getTooltipContent('Soft Navigation Constructor', e.args, e.args.navigationId, adjustedTimestamp),
+              this.getTooltipContent('Soft Navigation Context Created', e.args, e.args.navigationId, adjustedTimestamp),
               e.args?.context?.softNavContextId));
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED) {
@@ -914,7 +910,7 @@
               this.getTooltipContent('Soft Navigation Detected', e.args, lastSoftNavId, adjustedTimestamp),
               contextId));
             continue;
-          } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE || e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE) {
+          } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE) {
             nextDomModifications.push({
               'timestamp': adjustedTimestamp,
               'contextId': e.args?.context?.softNavContextId,
@@ -923,7 +919,7 @@
               'domModifications': e.args?.context?.domModifications,
             });
             continue;
-          } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_PAINT_IN_FRAME || e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_PAINT_IN_FRAME) {
+          } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_PAINT_IN_FRAME) {
             nextPaints.push({
               'timestamp': adjustedTimestamp,
               'contextId': e.args?.context?.softNavContextId,
