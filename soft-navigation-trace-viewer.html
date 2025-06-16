@@ -149,6 +149,11 @@
         clip-path: polygon(50% 0%, 63% 38%, 100% 38%, 75% 63%, 88% 100%, 50% 75%, 12% 100%, 25% 63%, 0% 38%, 37% 38%);
       }
 
+      /* When the 'final' attribute is set on the .icon element */
+      .icon-lcp[final] {
+        background-color: var(--icon-highlight-color);
+      }
+
       /* Context Exhausted (Curved Hourglass) */
       .icon-exhausted {
         clip-path: polygon(0 0, 100% 0, 100% 15%, 65% 45%, 65% 55%, 100% 85%, 100% 100%, 0 100%, 0 85%, 35% 55%, 35% 45%, 0 15%);
@@ -507,7 +512,6 @@
       #src;
       #highlightColor;
       #paintRects;
-      #final;
 
       connectedCallback() {
         const shadowRoot = this.attachShadow({ mode: "open" });
@@ -621,6 +625,7 @@
       #event;
       #tooltipContent;
       #iconColor;
+      #iconHighlightColor;
 
       constructor() {
         super();
@@ -632,6 +637,7 @@
         this.updateEvent();
         this.updateTooltipContent();
         this.updateIconColor();
+        this.updateIconHighlightColor();
         this.shadowRoot.querySelector('.icon').addEventListener('mouseenter', () => this.shadowRoot.querySelector('filmstrip-tooltip').hover = true);
         this.shadowRoot.querySelector('.icon').addEventListener('mouseleave', () => this.shadowRoot.querySelector('filmstrip-tooltip').hover = false);
         this.addEventListener('click', () => this.shadowRoot.querySelector('filmstrip-tooltip').hoverSticky = !this.shadowRoot.querySelector('filmstrip-tooltip').hoverSticky);
@@ -646,6 +652,11 @@
       set iconColor(iconColor) {
         this.#iconColor = iconColor;
         this.updateIconColor();
+      }
+
+      set iconHighlightColor(iconHighlightColor) {
+        this.#iconHighlightColor = iconHighlightColor;
+        this.updateIconHighlightColor();
       }
 
       set event(event) {
@@ -677,6 +688,9 @@
           return;
         }
         tooltip.values = this.#tooltipContent;
+        if (this.#tooltipContent.Final) {
+          this.shadowRoot.querySelector('.icon').setAttribute('final', '');
+        }
       }
 
       updateIconColor() {
@@ -686,6 +700,13 @@
         this.style.setProperty('--icon-color', this.#iconColor);
         this.shadowRoot.querySelector('filmstrip-tooltip').color = this.#iconColor;
         this.shadowRoot.querySelector('filmstrip-tooltip').yposition = 'bottom';
+      }
+
+      updateIconHighlightColor() {
+        if (!this.shadowRoot || !this.#iconHighlightColor) {
+          return;
+        }
+        this.style.setProperty('--icon-highlight-color', this.#iconHighlightColor);
       }
     }
 
@@ -753,7 +774,6 @@
       SOFT_NAV_DETECTED: 'SoftNavigationHeuristics_SoftNavigationDetected',
       TRACING_STARTED: 'TracingStartedInBrowser',
       VIEWPORT: 'PaintTimingVisualizer::Viewport',
-      LAYOUT_OBJECT_PAINTED: 'PaintTimingVisualizer::LayoutObjectPainted',
       SOFT_NAV_CONSTRUCTOR: "SoftNavigationHeuristics::SoftNavigation",
       SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE: "SoftNavigationContext::FirstAddedModifiedNodeInAnimationFrame",
       SOFT_NAV_CONTEXT_MODIFIED_NODE: "SoftNavigationContext::AddedModifiedNodeInAnimationFrame",
@@ -795,6 +815,7 @@
         icon.event = event;
         icon.tooltipContent = tooltipContent;
         icon.iconColor = CONTEXT_ID_COLORS[contextId % CONTEXT_ID_COLORS.length];
+        icon.iconHighlightColor = CONTEXT_ID_HIGHLIGHT_COLORS[contextId % CONTEXT_ID_COLORS.length];
         icon.timestamp = tooltipContent['Timestamp'];
         return icon;
       }
@@ -846,6 +867,20 @@
             break;
           }
         }
+        // Make a map of soft nav -> context id
+        const navigationIdToContextId = traceEvents.reduce((acc, e) => {
+          if (e.args.navigationId && e.args?.context?.softNavContextId) {
+            acc[e.args.navigationId] = e.args.context.softNavContextId;
+          }
+          return acc;
+        }, {});
+        // Make a map of navigation id -> final lcp candidate node id
+        const navigationIdToFinalLcpNodeId = traceEvents
+          .filter(e => e.name === TRACE_EVENT_NAMES.LCP_CANDIDATE)
+          .reduce((acc, e) => {
+            acc[e.args.data.navigationId] = e.args.data.nodeId;
+            return acc;
+          }, {});
         traceEvents.splice(0, index);
         let timeStart = traceEvents[0].ts;
         let lastSnapshot = null;
@@ -854,8 +889,6 @@
         let nextLcpData = null;
         let nextDomModifications = [];
         let nextPaints = [];
-        let lastLcpCandidateContainer = null;
-        let navigationIdToContextId = {};
         for (let e of traceEvents) {
           let eventsElement = document.createElement('timeline-events');
           let adjustedTimestamp = Math.floor((e.ts - timeStart) / 1000);
@@ -880,11 +913,6 @@
               'soft-nav-detected',
               this.getTooltipContent('Soft Navigation Detected', e.args, lastSoftNavId, adjustedTimestamp),
               contextId));
-            if (lastLcpCandidateContainer) {
-              lastLcpCandidateContainer.querySelector('filmstrip-screenshot').final = true;
-              lastLcpCandidateContainer.querySelector('timeline-events').final = true;
-              lastLcpCandidateContainer = null;
-            }
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_FIRST_MODIFIED_NODE || e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE) {
             nextDomModifications.push({
@@ -920,6 +948,7 @@
               // LCP unrelated to soft navs in this trace.
               continue;
             }
+            let final = navigationIdToFinalLcpNodeId[e.args.data.navigationId] == e.args.data.nodeId;
             nextLcpData = {
               'size': e.args.data.size,
               'type': e.args.data.type,
@@ -927,6 +956,7 @@
               'Navigation ID': e.args.data.navigationId,
               'Timestamp': adjustedTimestamp,
               'nodeId': e.args.data.nodeId,
+              'final': final
             };
             nextIcons.push(this.createIcon(
               'lcp',
@@ -935,7 +965,8 @@
                 'Navigation ID': e.args.data.navigationId,
                 'Context ID': contextId,
                 'Node ID': e.args.data.nodeId,
-                'Timestamp': adjustedTimestamp
+                'Timestamp': adjustedTimestamp,
+                'Final': final,
               },
               contextId));
             continue;
@@ -971,8 +1002,11 @@
             if (nextPaints.length > 0) {
               if (nextLcpData) {
                 for (let paint of nextPaints) {
+                  console.log(paint.nodeId);
                   if (paint.contextId == nextLcpData['Context ID'] && paint.nodeId == nextLcpData.nodeId) {
+                    console.log('Is LCP, final=', nextLcpData['final']);
                     paint.lcpCandidate = true;
+                    paint.final = nextLcpData['final'];
                   }
                 }
               }
@@ -1006,11 +1040,6 @@
           containerDiv.appendChild(eventsElement);
           containerDiv.appendChild(timestampElement);
           timelineContainer.appendChild(containerDiv);
-        }
-        if (lastLcpCandidateContainer) {
-          lastLcpCandidateContainer.querySelector('filmstrip-screenshot').final = true;
-          lastLcpCandidateContainer.querySelector('timeline-events').final = true;
-          lastLcpCandidateContainer = null;
         }
       }
     }
