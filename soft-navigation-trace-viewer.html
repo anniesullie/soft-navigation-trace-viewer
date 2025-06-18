@@ -932,7 +932,7 @@
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_PAINT_IN_FRAME) {
             let contextId = e.args?.context?.softNavContextId;
             let nodeId = e.args?.nodeId;
-            let lcpCandidate = nodeId in lcpTimestamps[contextId]
+            let lcpCandidate = nodeId in (lcpTimestamps[contextId] || {});
             let final = lcpCandidate && lcpCandidates[contextId][nodeId];
             nextPaints.push({
               'timestamp': adjustedTimestamp,
