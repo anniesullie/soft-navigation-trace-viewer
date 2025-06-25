@@ -6,23 +6,30 @@ This project creates filmstrip views from traces using the experimental new [Sof
 Here is an example of what it displays:
 ![Screenshot of an example filmstrip](filmstrip-screenshot.png)
 It highlights:
-* The start of the soft navigation in green (hover for more info)
-* The paints which were LCP candidates in yellow (hover for more info)
-* The timestamps of paints along the bottom (in milliseconds from when the recording started)
+* When a new soft navigation context is created (via a user click/keypress), with a **cursor arrow** icon. If a URL change, DOM modification, or paint is part of this soft navigation it should be associated with the context. The arrow and all the events in the context will be show in the same color. You can hover or click on their icon for details.
+* When a DOM modification occurs in the soft nav context, with a **page with turned corner** icon. The hover tooltip shows a full list of DOM nodes modified. Their node ids can be mapped to paint events.
+* When there is a paint in one of the aforrementioned nodes, with a **paintbrush icon**. Rectangles showing the locations of the paints will be drawn on the filmstrip. Largest Contenful Paint candidates will be highlighted on the filmstrip with a yellow border. Hovering over the icon or the paint rectangles will show a tooltip with more information.
+* When a URL update and enough paints have occured to detect a soft navigation, with an **indicator arrow** icon. You can hover for details, including the URL.
+* When an LCP candidate appears, with a **star icon**. If the candidate is the final LCP candidate, it will be shown in a lighter color. Hover for a tooltip with more information.
+* When the context is exhausted, with an **hourglass icon**. It's normal for these not to occur before tracing ends, or all of the contexts to be exhausted at once at the end of page load.
 
 ## Try it out
 To use it, you need to record a trace of one or more soft navigations:
-1. Enable [experimental web platform features](https://developer.chrome.com/docs/web-platform/chrome-flags#two_other_ways_to_try_out_experimental_features):
-   1. Type chrome://flags/#enable-experimental-web-platform-features into the urlbar
-   2. Ensure "Experimental Web Platform features" is enabled
-   3. Restart Chrome for the change to take effect
-2. Load the page you want to trace and open devtools.
-3. Test to ensure soft navigations are detected; in the console you should see "A soft navigation has been detected: <url>" if the page's soft navigations are properly detected.
-4. Open the performance panel and press record. See ["Record runtime performance"](https://developer.chrome.com/docs/devtools/performance#record) in the devtools "Analyze runtime performance" guide for more information.
-5. Do one or more soft navigations on the page.
-6. Press stop on the performance panel and wait for it to process the recording.
-7. Download the recording using the "Save profile" button with the down arrow icon.
-8. Open `soft-navigation-trace-viewer.html` in a browser and drop the JSON file into it. You can [use the version hosted on glitch](https://soft-navigation-timeline.glitch.me/) if you don't want to run it locally.
-9. A filmstrip should appear showing the navigations and largest contentful paint candidates. You can use the "Save Page As" feature to save this filmstrip and share it.
+1. Use Chrome M139 Beta or Chrome M140 Dev/Canary or later.
+2. Start Chrome with the command line flags `--enable-features=SoftNavigationHeuristics:mode/advanced_paint_attribution,NavigationId`
+3. Open DevTools. Ensure you've enabled recording all trace events (this will help the team with diagnosing any unexpected bugs):
+    * In DevTools, click the settings gear icon.
+    * Click "Experiments" in the left sidebar.
+    * Scroll down to "Unstable Experiments"
+    * Check the "Performance panel: show all events" box.
+    * You'll need to reload devtools.
+4. Open the DevTools performance panel and start recording.
+5. Interact with the page, doing the soft navigations you want to debug, and waiting for the content to paint.
+6. Stop the recording.
+7. Click the download button and save the trace.
+8. Upload it to https://trace.cafe/
+9. Click "Soft-Nav" at the upper right. You can see the filmstrip now!
+10. To share or add to a bug, just copy the trace.cafe URL from the URLbar.
+
 
 If you don't have a trace recorded and you just want to see what it does, you can use the [Example Trace](ExampleTraceUnformatted.json).
