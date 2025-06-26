@@ -893,7 +893,7 @@
         ].includes(e.name));
 
         // Find the first soft navigation event.
-        let firstSoftNavIndex = traceEvents.findIndex((e) => e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED);
+        let firstSoftNavIndex = traceEvents.findIndex((e) => e.name != TRACE_EVENT_NAMES.SCREENSHOT);
         if (firstSoftNavIndex == -1) {
           throw new Error('No soft navigations found in trace!');
         }
