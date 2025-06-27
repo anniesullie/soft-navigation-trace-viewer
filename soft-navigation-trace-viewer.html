@@ -60,6 +60,8 @@
         border: 2px solid black;
         text-align: center;
         background-color: var(--color);
+        max-height: 400px;
+        overflow-y: auto;
       }
 
       .tooltip.hover, .tooltip.hoverSticky, .tooltip:hover {
@@ -68,6 +70,8 @@
 
       .title {
         font-weight: bold;
+        text-align: left;
+        margin-left: 20px;
       }
 
       .data-grid {
@@ -1046,7 +1050,7 @@
                   {
                       'title': 'Paint Attributed',
                       'Context ID': contextId,
-                      'Node IDs': paintsForContext.map(node => node.nodeId).join(','),
+                      'Node IDs': paintsForContext.map(node => node.nodeId).join(', '),
                       'Node Debug Names': paintsForContext.map(node => node.nodeDebugName).join('\n'),
                       'Painted Area': Math.max(...paintsForContext.map(item => item.paintedArea)),
                       'Timestamp': paintsForContext[0].timestamp
