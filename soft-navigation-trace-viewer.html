@@ -627,11 +627,7 @@
             if (['x', 'y', 'width', 'height'].includes(key)) {
               return;
             }
-            if (key == 'lcpCandidate') {
-              tooltipInfo['LCP Candidate'] = 'True';
-            } else {
-              tooltipInfo[key] = value;
-            }
+            tooltipInfo[key] = value;
           });
           let tooltip = document.createElement('filmstrip-tooltip');
           tooltip.values = tooltipInfo;
@@ -801,7 +797,7 @@
 
     const TRACE_EVENT_NAMES = {
       SCREENSHOT: 'Screenshot',
-      LCP_CANDIDATE: 'largestContentfulPaint::Candidate',
+      SOFT_LCP_CANDIDATE: 'largestContentfulPaint::CandidateForSoftNavigation',
       SOFT_NAV_DETECTED: 'SoftNavigationHeuristics::EmitSoftNavigationEntry',
       TRACING_STARTED: 'TracingStartedInBrowser',
       VIEWPORT: 'PaintTimingVisualizer::Viewport',
@@ -899,7 +895,7 @@
 
         // Make a map of (context id, node id) -> LCP timestamp, LCP final
         let lcpTimestamps = {};
-        traceEvents.filter((e) => e.name == TRACE_EVENT_NAMES.LCP_CANDIDATE).forEach((e, i) => {
+        traceEvents.filter((e) => e.name == TRACE_EVENT_NAMES.SOFT_LCP_CANDIDATE).forEach((e, i) => {
           let navigationId = e.args.data.performanceTimelineNavigationId || e.args.data.navigationId;
           let contextId = navigationIdToContextId[navigationId];
           lcpTimestamps[contextId] = lcpTimestamps[contextId] || {};
