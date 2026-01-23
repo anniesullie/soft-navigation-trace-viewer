@@ -154,8 +154,8 @@
         clip-path: polygon(35% 0, 65% 0, 65% 45%, 85% 60%, 85% 100%, 15% 100%, 15% 60%, 35% 45%);
       }
 
-      /* Soft navigation detected (Marker) */
-      .icon-soft-nav-detected {
+      /* Soft navigation committed (Marker) */
+      .icon-soft-nav-committed {
         clip-path: polygon(50% 0%, 82% 37%, 82% 100%, 18% 100%, 18% 37%);
       }
 
@@ -798,7 +798,7 @@
     const TRACE_EVENT_NAMES = {
       SCREENSHOT: 'Screenshot',
       SOFT_LCP_CANDIDATE: 'largestContentfulPaint::CandidateForSoftNavigation',
-      SOFT_NAV_DETECTED: 'SoftNavigationHeuristics::EmitSoftNavigationEntry',
+      SOFT_NAV_COMMITTED: 'SoftNavigationHeuristics::SameDocumentNavigationCommitted',
       TRACING_STARTED: 'TracingStartedInBrowser',
       VIEWPORT: 'PaintTimingVisualizer::Viewport',
       SOFT_NAV_CONTEXT_CREATED: 'SoftNavigationHeuristics::CreateNewContext',
@@ -914,7 +914,7 @@
         traceEvents = traceEvents.filter((e) => [
           TRACE_EVENT_NAMES.SCREENSHOT,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_CREATED,
-          TRACE_EVENT_NAMES.SOFT_NAV_DETECTED,
+          TRACE_EVENT_NAMES.SOFT_NAV_COMMITTED,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_PAINT_IN_FRAME,
           TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_EXHAUSTED,
@@ -957,12 +957,12 @@
               this.getTooltipContent('Soft Navigation Context Created', e.args, navigationId, adjustedTimestamp),
               e.args?.context?.softNavContextId));
             continue;
-          } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_DETECTED) {
+          } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_COMMITTED) {
             lastSoftNavId = this.navigationIdForSoftNavigationEvent(e);
             let contextId = e.args?.context?.softNavContextId;
             nextIcons.push(this.createIcon(
-              'soft-nav-detected',
-              this.getTooltipContent('Soft Navigation Detected', e.args, lastSoftNavId, adjustedTimestamp),
+              'soft-nav-committed',
+              this.getTooltipContent('Soft Navigation Committed', e.args, lastSoftNavId, adjustedTimestamp),
               contextId));
             continue;
           } else if (e.name == TRACE_EVENT_NAMES.SOFT_NAV_CONTEXT_MODIFIED_NODE) {
